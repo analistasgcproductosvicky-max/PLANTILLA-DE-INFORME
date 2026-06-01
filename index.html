@@ -25,14 +25,25 @@
   window._fb = {
     async guardar(id, datos) {
       try {
-        await setDoc(doc(db, 'borradores', id), { ...datos, ts: Date.now() });
+        // Firestore no acepta arrays anidados — serializar fotos, tablas y resp como strings
+        const flat = { ...datos, ts: Date.now() };
+        if(flat.fotos) flat.fotos = JSON.stringify(flat.fotos);
+        if(flat.tablas) flat.tablas = JSON.stringify(flat.tablas);
+        if(flat.resp) flat.resp = JSON.stringify(flat.resp);
+        await setDoc(doc(db, 'borradores', id), flat);
         return true;
       } catch(e) { console.error('Firebase guardar:', e); return false; }
     },
     async cargar(id) {
       try {
         const snap = await getDoc(doc(db, 'borradores', id));
-        return snap.exists() ? snap.data() : null;
+        if(!snap.exists()) return null;
+        const d = snap.data();
+        // Deserializar
+        if(typeof d.fotos === 'string') try { d.fotos = JSON.parse(d.fotos); } catch(e){}
+        if(typeof d.tablas === 'string') try { d.tablas = JSON.parse(d.tablas); } catch(e){}
+        if(typeof d.resp === 'string') try { d.resp = JSON.parse(d.resp); } catch(e){}
+        return d;
       } catch(e) { console.error('Firebase cargar:', e); return null; }
     },
     async listar() {
