@@ -24,17 +24,18 @@
   const db  = getFirestore(app);
 
   // ── helpers serialización ──
+  // Firestore no acepta arrays anidados — serializar objetos complejos como JSON strings
   function serial(datos) {
     const f = { ...datos, ts: Date.now() };
-    if(f.fotos)  f.fotos  = JSON.stringify(f.fotos);
-    if(f.tablas) f.tablas = JSON.stringify(f.tablas);
-    if(f.resp)   f.resp   = JSON.stringify(f.resp);
+    ['_fotos','_tablas','_resp','_sinos','fotos','tablas','resp'].forEach(k => {
+      if(f[k] !== undefined) f[k] = JSON.stringify(f[k]);
+    });
     return f;
   }
   function deserial(d) {
-    if(typeof d.fotos  === 'string') try { d.fotos  = JSON.parse(d.fotos);  } catch(e){}
-    if(typeof d.tablas === 'string') try { d.tablas = JSON.parse(d.tablas); } catch(e){}
-    if(typeof d.resp   === 'string') try { d.resp   = JSON.parse(d.resp);   } catch(e){}
+    ['_fotos','_tablas','_resp','_sinos','fotos','tablas','resp'].forEach(k => {
+      if(typeof d[k] === 'string') try { d[k] = JSON.parse(d[k]); } catch(e){}
+    });
     return d;
   }
 
@@ -809,47 +810,145 @@ async function guardarBorrador() {
 function guardarAutoLocal() { guardarNube(); }
 
 function recopilarDatos() {
-  const d = { tipo: tipoActual };
+  const d = { tipo: tipoActual, fecha: '', turno: '', codigo: '' };
+
+  // 1. Campos con data-campo
   document.querySelectorAll('[data-campo]').forEach(el => {
     const k = el.dataset.campo;
-    if(el.type==='checkbox') d[k]=el.checked;
-    else d[k]=el.value;
+    if(el.type==='checkbox') d[k] = el.checked;
+    else d[k] = el.value;
   });
-  // Si/No buttons
+
+  // 2. Botones Si/No — guardar por data-key de la fila
+  const sinos = {};
   document.querySelectorAll('.sino-row').forEach(row => {
     const act = row.querySelector('.rbtn.si,.rbtn.no');
-    if(act && row.dataset.key) d[row.dataset.key] = act.classList.contains('si')?'si':'no';
+    const key = row.dataset.key;
+    if(key) sinos[key] = act ? (act.classList.contains('si') ? 'si' : 'no') : '';
   });
-  // Responsables
+  d._sinos = sinos;
+
+  // 3. Responsables — guardar por id del contenedor de tags
+  const resp = {};
   document.querySelectorAll('[id^="tags-"]').forEach(tags => {
-    const area = tags.id.replace('tags-resp-','').split('-')[0];
-    if(!d.resp) d.resp={};
-    d.resp[tags.id] = [...tags.querySelectorAll('.resp-tag')].map(t=>t.dataset.nombre||t.textContent.replace('×','').trim());
+    resp[tags.id] = [...tags.querySelectorAll('.resp-tag')]
+      .map(t => t.dataset.nombre || t.textContent.replace('×','').trim());
   });
-  // Fotos
-  d.fotos = {};
-  document.querySelectorAll('.fgrid').forEach((grid,i) => {
-    d.fotos[i] = [...grid.querySelectorAll('.fitem')].map(item => ({
-      src: item.querySelector('img').src,
-      cap: item.querySelector('input')?.value||''
-    }));
+  d._resp = resp;
+
+  // 4. Fotos — guardar por id del fgrid padre (usando un id generado)
+  const fotos = {};
+  document.querySelectorAll('.fgrid').forEach((grid, i) => {
+    // Asignar id estable si no tiene
+    if(!grid.dataset.fid) grid.dataset.fid = 'fg_' + i;
+    const fid = grid.dataset.fid;
+    const items = [...grid.querySelectorAll('.fitem')].map(item => ({
+      src: item.querySelector('img')?.src || '',
+      cap: item.querySelector('.fcap-inp')?.value || ''
+    })).filter(f => f.src);
+    if(items.length) fotos[fid] = items;
   });
-  // Tablas
-  d.tablas = {};
-  document.querySelectorAll('table.reg').forEach(t => {
-    if(!t.id) return;
-    d.tablas[t.id] = [...t.querySelectorAll('tbody tr')].map(tr =>
-      [...tr.querySelectorAll('input,select')].map(el=>el.value)
+  d._fotos = fotos;
+
+  // 5. Tablas — guardar por id de la tabla
+  const tablas = {};
+  document.querySelectorAll('table.reg[id]').forEach(t => {
+    tablas[t.id] = [...t.querySelectorAll('tbody tr')].map(tr =>
+      [...tr.querySelectorAll('input,select')].map(el => el.value)
     );
   });
+  d._tablas = tablas;
+
   return d;
 }
 
 function restaurarDatos(d) {
+  if(!d) return;
+
+  // 1. Campos data-campo
   document.querySelectorAll('[data-campo]').forEach(el => {
     const k = el.dataset.campo;
-    if(d[k]!==undefined){ if(el.type==='checkbox') el.checked=d[k]; else el.value=d[k]; }
+    if(d[k] !== undefined) {
+      if(el.type==='checkbox') el.checked = d[k];
+      else el.value = d[k];
+    }
   });
+
+  // 2. Si/No
+  if(d._sinos) {
+    document.querySelectorAll('.sino-row').forEach(row => {
+      const key = row.dataset.key;
+      const val = d._sinos[key];
+      if(!val) return;
+      row.querySelectorAll('.rbtn').forEach(b => b.classList.remove('si','no'));
+      const btn = [...row.querySelectorAll('.rbtn')]
+        .find(b => (val==='si' && b.textContent.trim()==='Sí') || (val==='no' && b.textContent.trim()==='No'));
+      if(btn) {
+        btn.classList.add(val);
+        // Bloquear campo de detalle si es 'no'
+        const det = row.nextElementSibling;
+        if(det && (det.tagName==='TEXTAREA'||det.tagName==='INPUT') && val==='no') {
+          det.disabled = true; det.value = '';
+        }
+      }
+    });
+  }
+
+  // 3. Responsables
+  if(d._resp) {
+    Object.entries(d._resp).forEach(([tagsId, nombres]) => {
+      const tags = document.getElementById(tagsId);
+      if(!tags || !nombres.length) return;
+      tags.innerHTML = '';
+      nombres.forEach(nombre => {
+        const tag = document.createElement('div');
+        tag.className = 'resp-tag'; tag.dataset.nombre = nombre;
+        tag.innerHTML = `${nombre}<button onclick="this.parentElement.remove();programarAutoGuardado()" title="Quitar">×</button>`;
+        tags.appendChild(tag);
+      });
+    });
+  }
+
+  // 4. Fotos
+  if(d._fotos) {
+    document.querySelectorAll('.fgrid').forEach((grid, i) => {
+      if(!grid.dataset.fid) grid.dataset.fid = 'fg_' + i;
+      const fid = grid.dataset.fid;
+      const items = d._fotos[fid];
+      if(!items || !items.length) return;
+      grid.innerHTML = '';
+      items.forEach(f => {
+        if(!f.src) return;
+        const item = document.createElement('div'); item.className = 'fitem';
+        const img = document.createElement('img'); img.src = f.src; img.className = 'fthumb';
+        const del = document.createElement('button'); del.className = 'fdel'; del.textContent = '×';
+        del.onclick = () => { item.remove(); programarAutoGuardado(); };
+        const cap = document.createElement('input'); cap.type='text'; cap.className='fcap-inp';
+        cap.placeholder='Descripción...'; cap.value = f.cap || '';
+        cap.addEventListener('input', programarAutoGuardado);
+        item.appendChild(img); item.appendChild(del); item.appendChild(cap);
+        grid.appendChild(item);
+      });
+    });
+  }
+
+  // 5. Tablas — agregar filas extra si hacen falta
+  if(d._tablas) {
+    Object.entries(d._tablas).forEach(([tid, filas]) => {
+      const t = document.getElementById(tid);
+      if(!t) return;
+      const tbody = t.querySelector('tbody');
+      const cols = filas[0]?.length || 0;
+      // Asegurar suficientes filas
+      while(tbody.rows.length < filas.length) addRow(tid, cols);
+      [...tbody.rows].forEach((tr, ri) => {
+        if(!filas[ri]) return;
+        [...tr.querySelectorAll('input,select')].forEach((el, ci) => {
+          if(filas[ri][ci] !== undefined) el.value = filas[ri][ci];
+        });
+      });
+    });
+  }
 }
 
 /* ══════ TOAST ══════ */
