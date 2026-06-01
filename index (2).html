@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informes de Calidad — Productos Vicky S.A.S.</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --azul:#0d2d4e;--azul-m:#1a4d7a;--azul-cl:#e8f2fb;--azul-borde:#b5d4f4;
+  --verde:#0a6e4a;--verde-cl:#e6f5ef;--verde-borde:#9fe1cb;
+  --rojo:#c0392b;--rojo-cl:#fdf0ef;--rojo-borde:#f0997b;
+  --naranja:#d68910;--naranja-cl:#fef9e7;
+  --gris:#f5f6f8;--gris-m:#e8eaed;--borde:#d8dde6;
+  --txt:#1a1f2e;--txt-s:#5a6478;--blanco:#fff;
+  --r:10px;--rlg:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#eef1f7;color:var(--txt);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── MENÚ PRINCIPAL ── */
+#pantalla-menu{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.menu-header{text-align:center;margin-bottom:40px}
+.menu-logo{width:60px;height:60px;background:var(--azul);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:white;margin:0 auto 16px}
+.menu-title{font-size:24px;font-weight:600;color:var(--azul);letter-spacing:-0.5px}
+.menu-sub{font-size:14px;color:var(--txt-s);margin-top:4px}
+.menu-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;width:100%;max-width:860px}
+.menu-card{background:var(--blanco);border:1.5px solid var(--borde);border-radius:var(--rlg);padding:24px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.menu-card:hover{border-color:var(--azul-m);transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,45,78,.1)}
+.menu-card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px}
+.ic-empaque{background:var(--azul-cl)}
+.ic-mp{background:var(--verde-cl)}
+.menu-card-title{font-size:16px;font-weight:600;color:var(--azul);margin-bottom:4px}
+.menu-card-desc{font-size:13px;color:var(--txt-s);line-height:1.5}
+.menu-card-freq{position:absolute;top:14px;right:14px;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.freq-turno{background:var(--azul-cl);color:var(--azul-m)}
+.freq-dia{background:var(--verde-cl);color:var(--verde)}
+.borradores-btn{margin-top:20px;background:none;border:1.5px dashed var(--borde);border-radius:var(--r);padding:10px 24px;font-size:13px;color:var(--txt-s);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.borradores-btn:hover{border-color:var(--azul-m);color:var(--azul)}
+.borradores-list{width:100%;max-width:860px;margin-top:16px;display:none}
+.borrador-item{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;cursor:pointer;transition:background .15s}
+.borrador-item:hover{background:var(--azul-cl)}
+.borrador-info{display:flex;flex-direction:column;gap:2px}
+.borrador-nombre{font-size:13px;font-weight:500;color:var(--azul)}
+.borrador-fecha{font-size:11px;color:var(--txt-s)}
+.borrador-actions{display:flex;gap:8px}
+.btn-mini{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--borde);background:var(--gris);color:var(--txt);font-family:'DM Sans',sans-serif}
+.btn-mini-rojo{border-color:var(--rojo-borde);color:var(--rojo);background:var(--rojo-cl)}
+
+/* ── FORMULARIO ── */
+#pantalla-form{display:none}
+.page-header{background:var(--azul);color:white;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(13,45,78,.18)}
+.header-inner{max-width:980px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.header-left{display:flex;align-items:center;gap:12px}
+.hbtn{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px;transition:all .15s}
+.hbtn-outline{background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.2)}
+.hbtn-outline:hover{background:rgba(255,255,255,.18)}
+.hbtn-white{background:white;color:var(--azul)}
+.hbtn-white:hover{background:#e8f2fb}
+.hbtn-verde{background:#0a6e4a;color:white}
+.hbtn-verde:hover{background:#085e3f}
+.header-title{font-size:14px;font-weight:600}
+.header-sub{font-size:11px;opacity:.6;margin-top:1px}
+.header-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;background:rgba(255,255,255,.15);color:white}
+.autosave{font-size:11px;opacity:.5;margin-left:8px}
+
+/* ── TABS DE ESTADO ── */
+.tabs-estado{max-width:980px;margin:0 auto;padding:16px 20px 0;display:flex;gap:8px;flex-wrap:wrap}
+.tab-estado{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--borde);background:var(--blanco);color:var(--txt-s);transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab-estado:hover{border-color:var(--azul-m)}
+.tab-estado.activo{background:var(--azul);border-color:var(--azul);color:white}
+.estado-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-completo{background:#0a6e4a}
+.dot-parcial{background:#d68910}
+.dot-vacio{background:#d8dde6}
+.tab-estado.activo .dot-completo{background:#9fe1cb}
+.tab-estado.activo .dot-parcial{background:#fac775}
+.tab-estado.activo .dot-vacio{background:rgba(255,255,255,.4)}
+
+/* ── MAIN ── */
+.main{max-width:980px;margin:0 auto;padding:16px 20px 60px}
+
+/* ── DATOS TOP ── */
+.datos-card{background:var(--azul-m);color:white;border-radius:var(--rlg);padding:18px 22px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.dato-item label{font-size:11px;opacity:.65;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+.dato-item input,.dato-item select{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:white;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:7px 10px;width:100%}
+.dato-item input::placeholder{color:rgba(255,255,255,.4)}
+.dato-item select option{background:var(--azul)}
+
+/* ── SECCIÓN ── */
+.seccion{background:var(--blanco);border-radius:var(--rlg);border:1px solid var(--borde);margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(13,45,78,.05)}
+.sec-header{background:var(--azul-cl);border-bottom:1px solid var(--borde);padding:12px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.sec-header:hover{background:#dcedf8}
+.sec-icon{width:28px;height:28px;background:var(--azul);border-radius:7px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;flex-shrink:0}
+.sec-titulo{font-size:13px;font-weight:600;color:var(--azul);flex:1}
+.sec-chevron{color:var(--txt-s);font-size:14px;transition:transform .25s;flex-shrink:0}
+.sec-chevron.ab{transform:rotate(180deg)}
+.sec-body{padding:18px;display:none}
+.sec-body.ab{display:block}
+.sec-estado{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;margin-right:8px;flex-shrink:0}
+
+/* ── RESPONSABLES ── */
+.resp-area{background:var(--gris);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.resp-label{font-size:12px;font-weight:600;color:var(--azul);white-space:nowrap;padding-top:2px}
+.resp-tags{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.resp-tag{display:flex;align-items:center;gap:4px;background:var(--azul-cl);border:1px solid var(--azul-borde);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500;color:var(--azul-m)}
+.resp-tag button{background:none;border:none;color:var(--azul-m);cursor:pointer;font-size:13px;line-height:1;padding:0 0 0 2px}
+.resp-add{background:none;border:1.5px dashed var(--borde);border-radius:20px;padding:3px 12px;font-size:12px;color:var(--txt-s);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.resp-add:hover{border-color:var(--azul-m);color:var(--azul)}
+.resp-dropdown{position:relative;display:inline-block}
+.resp-menu{position:absolute;top:28px;left:0;background:var(--blanco);border:1px solid var(--borde);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:50;min-width:200px;overflow:hidden;display:none}
+.resp-menu.show{display:block}
+.resp-menu-item{padding:8px 14px;font-size:13px;cursor:pointer;transition:background .1s;color:var(--txt)}
+.resp-menu-item:hover{background:var(--azul-cl)}
+
+/* ── PREGUNTA ── */
+.pregunta{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--gris)}
+.pregunta:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.preg-label{font-size:13px;font-weight:500;color:var(--txt);margin-bottom:7px;display:flex;align-items:flex-start;gap:7px}
+.pnum{background:var(--azul);color:white;border-radius:50%;width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;margin-top:1px}
+.sino-row{display:flex;gap:7px;margin-bottom:7px}
+.rbtn{padding:5px 14px;border-radius:20px;border:1.5px solid var(--borde);background:var(--gris);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--txt)}
+.rbtn:hover{border-color:var(--azul-m)}
+.rbtn.si{background:var(--verde-cl);border-color:var(--verde-borde);color:var(--verde)}
+.rbtn.no{background:var(--rojo-cl);border-color:var(--rojo-borde);color:var(--rojo)}
+textarea.rdet{width:100%;padding:8px 11px;border:1.5px solid var(--borde);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--txt);background:var(--gris);resize:vertical;min-height:62px;transition:border-color .15s}
+textarea.rdet:focus{outline:none;border-color:var(--azul-m);background:white}
+textarea.rdet:disabled{opacity:.4;cursor:not-allowed;background:var(--gris-m)}
+input.rinp{width:100%;padding:8px 11px;border:1.5px solid var(--borde);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--txt);background:var(--gris);transition:border-color .15s}
+input.rinp:focus{outline:none;border-color:var(--azul-m);background:white}
+input.rinp:disabled{opacity:.4;cursor:not-allowed}
+select.rinp{width:100%;padding:8px 11px;border:1.5px solid var(--borde);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--txt);background:var(--gris);cursor:pointer}
+
+/* ── TABLA ── */
+.twrap{overflow-x:auto;margin-bottom:8px}
+table.reg{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}
+table.reg th{background:var(--azul);color:white;padding:7px 9px;font-weight:500;text-align:left;white-space:nowrap}
+table.reg td{padding:3px 5px;border-bottom:1px solid var(--borde)}
+table.reg tr:nth-child(even) td{background:var(--gris)}
+table.reg td input,table.reg td select{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--txt);padding:4px}
+table.reg td input:focus,table.reg td select:focus{outline:none;background:#e8f2fb;border-radius:3px}
+.btn-add{background:none;border:1.5px dashed var(--borde);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--txt-s);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;margin-top:5px}
+.btn-add:hover{border-color:var(--azul-m);color:var(--azul);background:var(--azul-cl)}
+
+/* ── FOTOS ── */
+.fzona{border:2px dashed var(--borde);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer;transition:all .2s;background:var(--gris);margin-top:8px}
+.fzona:hover{border-color:var(--azul-m);background:var(--azul-cl)}
+.fzona input[type=file]{display:none}
+.fzona-txt{font-size:11px;color:var(--txt-s);margin-top:3px}
+.fgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.fitem{position:relative}
+.fthumb{width:82px;height:82px;object-fit:cover;border-radius:8px;border:1.5px solid var(--borde);display:block}
+.fdel{position:absolute;top:-5px;right:-5px;background:var(--rojo);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.fcap{width:82px;font-size:10px;color:var(--txt-s);text-align:center;margin-top:3px;word-break:break-word;line-height:1.3}
+.fcap-inp{width:82px;font-size:10px;border:1px solid var(--borde);border-radius:4px;padding:2px 4px;font-family:'DM Sans',sans-serif;background:var(--gris);color:var(--txt);text-align:center}
+.fcap-inp:focus{outline:none;border-color:var(--azul-m)}
+
+/* ── FIRMA ── */
+.firma-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.firma-box{border:1.5px solid var(--borde);border-radius:var(--r);padding:12px;text-align:center;background:var(--gris)}
+.firma-lbl{font-size:12px;font-weight:600;color:var(--azul);margin-bottom:4px}
+canvas.fcanvas{border-bottom:1.5px solid var(--txt);width:100%;height:56px;display:block;cursor:crosshair;background:white;border-radius:4px;margin:6px 0 4px}
+.btn-limpiar{font-size:11px;color:var(--rojo);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* ── SEP ── */
+.sep{height:1px;background:var(--borde);margin:14px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid2,.firma-row{grid-template-columns:1fr}}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--azul);color:white;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.verde{background:var(--verde)}
+.toast.rojo{background:var(--rojo)}
+
+/* ── IMPRESIÓN ── */
+@media print{body,html{display:none}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ MENÚ PRINCIPAL ══════════ -->
+<div id="pantalla-menu">
+  <div class="menu-header">
+    <div class="menu-logo">PV</div>
+    <div class="menu-title">Informes de Calidad e Inocuidad</div>
+    <div class="menu-sub">Productos Vicky S.A.S.</div>
+  </div>
+
+  <div class="menu-cards">
+    <div class="menu-card" onclick="abrirFormulario('pe')">
+      <span class="menu-card-freq freq-turno">Por turno</span>
+      <div class="menu-card-icon ic-empaque">📦</div>
+      <div class="menu-card-title">Procesos y Empaque</div>
+      <div class="menu-card-desc">Extruido, Rosquilla, Tortillas, Trocillo, Papa, Pellet y Empaque. Un informe por turno.</div>
+    </div>
+    <div class="menu-card" onclick="abrirFormulario('mp')">
+      <span class="menu-card-freq freq-dia">Por día</span>
+      <div class="menu-card-icon ic-mp">🌿</div>
+      <div class="menu-card-title">Materia Prima</div>
+      <div class="menu-card-desc">Recepción, proveedores, sólidos totales y rotación de insumos. Un informe por día.</div>
+    </div>
+  </div>
+
+  <button class="borradores-btn" onclick="toggleBorradores()">📂 Ver borradores guardados</button>
+  <div class="borradores-list" id="borradores-list"></div>
+</div>
+
+<!-- ══════════ FORMULARIO ══════════ -->
+<div id="pantalla-form">
+  <header class="page-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <button class="hbtn hbtn-outline" onclick="volverMenu()">← Menú</button>
+        <div>
+          <div class="header-title" id="h-titulo">Informe</div>
+          <div class="header-sub" id="h-sub">Productos Vicky S.A.S.</div>
+        </div>
+        <span class="autosave" id="autosave-lbl">💾 Guardado</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="hbtn hbtn-outline" onclick="guardarBorrador()">💾 Guardar borrador</button>
+        <button class="hbtn hbtn-verde" onclick="generarPDF()" id="btn-pdf">📄 Generar PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs de estado (solo PE) -->
+  <div id="tabs-wrap" style="display:none">
+    <div class="tabs-estado" id="tabs-estado"></div>
+  </div>
+
+  <div class="main" id="form-content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const {jsPDF} = window.jspdf || {};
+
+/* ══════ PERSONAS POR ÁREA ══════
+   EDITAR AQUÍ para agregar/quitar responsables */
+const PERSONAS = {
+  empaque:   ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  extruido:  ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  rosquilla: ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  tortillas: ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  trocillo:  ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  papa:      ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  pellet:    ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  mp:        ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+};
+
+/* ══════ ESTADO GLOBAL ══════ */
+let tipoActual = '';
+let borradorId = '';
+let autoSaveTimer = null;
+
+const SECCIONES_PE = ['empaque','extruido','rosquilla','tortillas','trocillo','papa','pellet'];
+const SECCIONES_LABELS = {
+  empaque:'Empaque', extruido:'Extruido', rosquilla:'Rosquilla',
+  tortillas:'Tortillas', trocillo:'Trocillo', papa:'Líneas de Papa',
+  pellet:'Pellet', mp:'Materia Prima'
+};
+
+/* ══════ MENÚ ══════ */
+function abrirFormulario(tipo) {
+  tipoActual = tipo;
+  borradorId = tipo + '_' + Date.now();
+  document.getElementById('pantalla-menu').style.display = 'none';
+  document.getElementById('pantalla-form').style.display = 'block';
+  if(tipo === 'pe') {
+    document.getElementById('h-titulo').textContent = 'Procesos y Empaque';
+    document.getElementById('h-sub').textContent = 'Informe por turno';
+    document.getElementById('tabs-wrap').style.display = 'block';
+    renderTabsEstado();
+    renderFormPE();
+  } else {
+    document.getElementById('h-titulo').textContent = 'Materia Prima';
+    document.getElementById('h-sub').textContent = 'Informe diario';
+    document.getElementById('tabs-wrap').style.display = 'none';
+    renderFormMP();
+  }
+  window.scrollTo(0,0);
+}
+
+function volverMenu() {
+  guardarAutoLocal();
+  document.getElementById('pantalla-form').style.display = 'none';
+  document.getElementById('pantalla-menu').style.display = 'flex';
+  renderBorradores();
+}
+
+function toggleBorradores() {
+  const el = document.getElementById('borradores-list');
+  const visible = el.style.display === 'block';
+  el.style.display = visible ? 'none' : 'block';
+  renderBorradores();
+}
+
+function renderBorradores() {
+  const el = document.getElementById('borradores-list');
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('vicky_'));
+  if(!keys.length){ el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--txt-s);font-size:13px">No hay borradores guardados</div>'; return; }
+  el.innerHTML = keys.map(k => {
+    const d = JSON.parse(localStorage.getItem(k));
+    const tipo = d.tipo === 'pe' ? '📦 Procesos y Empaque' : '🌿 Materia Prima';
+    return `<div class="borrador-item">
+      <div onclick="cargarBorrador('${k}')" style="flex:1">
+        <div class="borrador-nombre">${tipo} — ${d.fecha||'Sin fecha'} Turno ${d.turno||'—'}</div>
+        <div class="borrador-fecha">Guardado: ${new Date(d.ts).toLocaleString('es-CO')}</div>
+      </div>
+      <div class="borrador-actions">
+        <button class="btn-mini" onclick="cargarBorrador('${k}')">Continuar</button>
+        <button class="btn-mini btn-mini-rojo" onclick="eliminarBorrador('${k}',event)">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cargarBorrador(key) {
+  const d = JSON.parse(localStorage.getItem(key));
+  tipoActual = d.tipo;
+  borradorId = key.replace('vicky_','');
+  document.getElementById('pantalla-menu').style.display = 'none';
+  document.getElementById('pantalla-form').style.display = 'block';
+  if(d.tipo==='pe'){
+    document.getElementById('h-titulo').textContent='Procesos y Empaque';
+    document.getElementById('h-sub').textContent='Informe por turno';
+    document.getElementById('tabs-wrap').style.display='block';
+    renderFormPE();
+    renderTabsEstado();
+  } else {
+    document.getElementById('h-titulo').textContent='Materia Prima';
+    document.getElementById('h-sub').textContent='Informe diario';
+    document.getElementById('tabs-wrap').style.display='none';
+    renderFormMP();
+  }
+  setTimeout(() => restaurarDatos(d), 200);
+  window.scrollTo(0,0);
+}
+
+function eliminarBorrador(key, e) {
+  e.stopPropagation();
+  if(confirm('¿Eliminar este borrador?')){ localStorage.removeItem(key); renderBorradores(); }
+}
+
+/* ══════ TABS ESTADO ══════ */
+function renderTabsEstado() {
+  const tabs = document.getElementById('tabs-estado');
+  tabs.innerHTML = SECCIONES_PE.map((s,i) => {
+    const estado = calcEstado(s);
+    return `<div class="tab-estado${i===0?' activo':''}" id="tab-${s}" onclick="scrollToSec('${s}')">
+      <span class="estado-dot dot-${estado}"></span>${SECCIONES_LABELS[s]}
+    </div>`;
+  }).join('');
+}
+
+function calcEstado(sec) {
+  const sinos = document.querySelectorAll(`#sec-${sec} .rbtn.si, #sec-${sec} .rbtn.no`);
+  const total = document.querySelectorAll(`#sec-${sec} .sino-row`).length;
+  if(!total) return 'vacio';
+  const filled = sinos.length;
+  if(filled === 0) return 'vacio';
+  if(filled >= total) return 'completo';
+  return 'parcial';
+}
+
+function actualizarTabEstado(sec) {
+  const tab = document.getElementById('tab-'+sec);
+  if(!tab) return;
+  const estado = calcEstado(sec);
+  tab.querySelector('.estado-dot').className = 'estado-dot dot-'+estado;
+}
+
+function scrollToSec(sec) {
+  document.querySelectorAll('.tab-estado').forEach(t => t.classList.remove('activo'));
+  const tab = document.getElementById('tab-'+sec);
+  if(tab) tab.classList.add('activo');
+  const el = document.getElementById('sec-'+sec);
+  if(el) {
+    const body = el.querySelector('.sec-body');
+    if(body && !body.classList.contains('ab')) toggleSec(el.querySelector('.sec-header'));
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+}
+
+/* ══════ HELPERS UI ══════ */
+function toggleSec(header) {
+  const body = header.nextElementSibling;
+  const ch = header.querySelector('.sec-chevron');
+  const ab = body.classList.toggle('ab');
+  ch.classList.toggle('ab', ab);
+}
+
+function siNo(btn, val) {
+  const grp = btn.closest('.sino-row');
+  grp.querySelectorAll('.rbtn').forEach(b => b.classList.remove('si','no'));
+  btn.classList.add(val);
+  const det = grp.nextElementSibling;
+  if(det && (det.tagName==='TEXTAREA'||det.tagName==='INPUT')) {
+    det.disabled = (val === 'no');
+    if(val==='no') det.value='';
+  }
+  const sec = btn.closest('.seccion');
+  if(sec) actualizarTabEstado(sec.id.replace('sec-',''));
+  programarAutoGuardado();
+}
+
+function addRow(tid, n) {
+  const tb = document.getElementById(tid).querySelector('tbody');
+  const tr = document.createElement('tr');
+  for(let i=0;i<n;i++){
+    const td=document.createElement('td');
+    const inp=document.createElement('input');inp.type='text';
+    inp.addEventListener('input', programarAutoGuardado);
+    td.appendChild(inp);tr.appendChild(td);
+  }
+  tb.appendChild(tr);
+}
+
+function addRowSel(tid, cols) {
+  const tb = document.getElementById(tid).querySelector('tbody');
+  const tr = document.createElement('tr');
+  cols.forEach(c => {
+    const td=document.createElement('td');
+    if(c==='sel'){
+      const s=document.createElement('select');
+      ['Sí','No'].forEach(o=>{const op=document.createElement('option');op.textContent=o;s.appendChild(op);});
+      td.appendChild(s);
+    } else {
+      const inp=document.createElement('input');inp.type='text';
+      inp.addEventListener('input', programarAutoGuardado);
+      td.appendChild(inp);
+    }
+    tr.appendChild(td);
+  });
+  tb.appendChild(tr);
+}
+
+function agregarFotos(input) {
+  const grid = input.closest('.fzona').nextElementSibling;
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const item = document.createElement('div');
+      item.className = 'fitem';
+      const img = document.createElement('img');
+      img.src = e.target.result; img.className = 'fthumb';
+      img.dataset.full = e.target.result;
+      const del = document.createElement('button');
+      del.className = 'fdel'; del.textContent = '×';
+      del.onclick = () => { item.remove(); programarAutoGuardado(); };
+      const cap = document.createElement('input');
+      cap.type='text'; cap.className='fcap-inp';
+      cap.placeholder='Descripción...';
+      cap.addEventListener('input', programarAutoGuardado);
+      item.appendChild(img); item.appendChild(del);
+      item.appendChild(cap);
+      grid.appendChild(item);
+      programarAutoGuardado();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+/* ══════ RESPONSABLES ══════ */
+function mkResponsables(area, label) {
+  const id = 'resp-'+area+'-'+Math.random().toString(36).slice(2,7);
+  return `<div class="resp-area" id="${id}">
+    <span class="resp-label">👤 ${label}:</span>
+    <div class="resp-tags" id="tags-${id}"></div>
+    <div class="resp-dropdown">
+      <button class="resp-add" onclick="toggleRespMenu('menu-${id}')">+ Agregar</button>
+      <div class="resp-menu" id="menu-${id}">
+        ${(PERSONAS[area]||[]).map(p=>`<div class="resp-menu-item" onclick="agregarResp('tags-${id}','${p}','menu-${id}')">${p}</div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleRespMenu(id) {
+  document.querySelectorAll('.resp-menu.show').forEach(m=>{ if(m.id!==id) m.classList.remove('show'); });
+  document.getElementById(id).classList.toggle('show');
+}
+
+document.addEventListener('click', e => {
+  if(!e.target.closest('.resp-dropdown')) document.querySelectorAll('.resp-menu.show').forEach(m=>m.classList.remove('show'));
+});
+
+function agregarResp(tagsId, nombre, menuId) {
+  const tags = document.getElementById(tagsId);
+  if([...tags.querySelectorAll('.resp-tag')].some(t=>t.dataset.nombre===nombre)) { document.getElementById(menuId).classList.remove('show'); return; }
+  const tag = document.createElement('div');
+  tag.className='resp-tag'; tag.dataset.nombre=nombre;
+  tag.innerHTML=`${nombre}<button onclick="this.parentElement.remove();programarAutoGuardado()" title="Quitar">×</button>`;
+  tags.appendChild(tag);
+  document.getElementById(menuId).classList.remove('show');
+  programarAutoGuardado();
+}
+
+function getResponsables(area) {
+  const tags = document.querySelectorAll(`[id^="tags-"][id*="${area}"] .resp-tag`);
+  return [...tags].map(t=>t.dataset.nombre||t.textContent.replace('×','').trim());
+}
+
+/* ══════ CANVAS FIRMA ══════ */
+function setupCanvas(id) {
+  const c = document.getElementById(id); if(!c) return;
+  const ctx=c.getContext('2d'); let dr=false;
+  const pos = (e,c) => { const r=c.getBoundingClientRect(); return e.touches?{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}:{x:e.offsetX,y:e.offsetY}; };
+  c.addEventListener('mousedown',e=>{dr=true;ctx.beginPath();const p=pos(e,c);ctx.moveTo(p.x,p.y)});
+  c.addEventListener('mousemove',e=>{if(!dr)return;const p=pos(e,c);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#0d2d4e';ctx.lineWidth=1.8;ctx.lineCap='round';ctx.stroke()});
+  c.addEventListener('mouseup',()=>dr=false);c.addEventListener('mouseleave',()=>dr=false);
+  c.addEventListener('touchstart',e=>{e.preventDefault();dr=true;ctx.beginPath();const p=pos(e,c);ctx.moveTo(p.x,p.y)},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault();if(!dr)return;const p=pos(e,c);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#0d2d4e';ctx.lineWidth=1.8;ctx.lineCap='round';ctx.stroke()},{passive:false});
+  c.addEventListener('touchend',()=>dr=false);
+}
+function limpiarFirma(id){ const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height); }
+
+/* ══════ GUARDADO LOCAL ══════ */
+function programarAutoGuardado() {
+  clearTimeout(autoSaveTimer);
+  document.getElementById('autosave-lbl').textContent='💾 Guardando...';
+  autoSaveTimer = setTimeout(() => { guardarAutoLocal(); }, 1200);
+}
+
+function guardarAutoLocal() {
+  const datos = recopilarDatos();
+  datos.ts = Date.now();
+  localStorage.setItem('vicky_'+borradorId, JSON.stringify(datos));
+  document.getElementById('autosave-lbl').textContent='💾 Guardado';
+}
+
+function guardarBorrador() {
+  guardarAutoLocal();
+  toast('✓ Borrador guardado', 'verde');
+}
+
+function recopilarDatos() {
+  const d = { tipo: tipoActual };
+  document.querySelectorAll('[data-campo]').forEach(el => {
+    const k = el.dataset.campo;
+    if(el.type==='checkbox') d[k]=el.checked;
+    else d[k]=el.value;
+  });
+  // Si/No buttons
+  document.querySelectorAll('.sino-row').forEach(row => {
+    const act = row.querySelector('.rbtn.si,.rbtn.no');
+    if(act && row.dataset.key) d[row.dataset.key] = act.classList.contains('si')?'si':'no';
+  });
+  // Responsables
+  document.querySelectorAll('[id^="tags-"]').forEach(tags => {
+    const area = tags.id.replace('tags-resp-','').split('-')[0];
+    if(!d.resp) d.resp={};
+    d.resp[tags.id] = [...tags.querySelectorAll('.resp-tag')].map(t=>t.dataset.nombre||t.textContent.replace('×','').trim());
+  });
+  // Fotos
+  d.fotos = {};
+  document.querySelectorAll('.fgrid').forEach((grid,i) => {
+    d.fotos[i] = [...grid.querySelectorAll('.fitem')].map(item => ({
+      src: item.querySelector('img').src,
+      cap: item.querySelector('input')?.value||''
+    }));
+  });
+  // Tablas
+  d.tablas = {};
+  document.querySelectorAll('table.reg').forEach(t => {
+    if(!t.id) return;
+    d.tablas[t.id] = [...t.querySelectorAll('tbody tr')].map(tr =>
+      [...tr.querySelectorAll('input,select')].map(el=>el.value)
+    );
+  });
+  return d;
+}
+
+function restaurarDatos(d) {
+  document.querySelectorAll('[data-campo]').forEach(el => {
+    const k = el.dataset.campo;
+    if(d[k]!==undefined){ if(el.type==='checkbox') el.checked=d[k]; else el.value=d[k]; }
+  });
+}
+
+/* ══════ TOAST ══════ */
+function toast(msg, tipo='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+(tipo||'');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+/* ══════ RENDER: PROCESOS Y EMPAQUE ══════ */
+function secHTML(id, icon, title, content) {
+  return `<div class="seccion" id="sec-${id}">
+    <div class="sec-header" onclick="toggleSec(this)">
+      <div class="sec-icon">${icon}</div>
+      <div class="sec-titulo">${title}</div>
+      <span class="sec-chevron">▼</span>
+    </div>
+    <div class="sec-body">${content}</div>
+  </div>`;
+}
+
+function pregHTML(num, txt, key, placeholder, tipo='textarea', extra='') {
+  const det = tipo==='textarea'
+    ? `<textarea class="rdet" data-campo="${key}_det" placeholder="${placeholder}" oninput="programarAutoGuardado()"></textarea>`
+    : `<input type="text" class="rinp" data-campo="${key}_det" placeholder="${placeholder}" oninput="programarAutoGuardado()">`;
+  return `<div class="pregunta">
+    <div class="preg-label"><span class="pnum">${num}</span>${txt}</div>
+    <div class="sino-row" data-key="${key}">
+      <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
+      <button class="rbtn" onclick="siNo(this,'no')">No</button>
+    </div>
+    ${det}
+    ${extra}
+  </div>`;
+}
+
+function pregSoloHTML(num, txt, key, placeholder, tipo='textarea') {
+  const el = tipo==='textarea'
+    ? `<textarea class="rdet" data-campo="${key}" placeholder="${placeholder}" oninput="programarAutoGuardado()"></textarea>`
+    : `<input type="text" class="rinp" data-campo="${key}" placeholder="${placeholder}" oninput="programarAutoGuardado()">`;
+  return `<div class="pregunta"><div class="preg-label"><span class="pnum">${num}</span>${txt}</div>${el}</div>`;
+}
+
+function fotoHTML(label, subLabel) {
+  return `<div class="pregunta">
+    <div class="preg-label">📷 ${label}</div>
+    <div class="fzona" onclick="this.querySelector('input').click()">
+      <input type="file" accept="image/*" multiple onchange="agregarFotos(this)">
+      <div>📷 Toque para agregar fotos</div>
+      <div class="fzona-txt">${subLabel}</div>
+    </div>
+    <div class="fgrid"></div>
+  </div>`;
+}
+
+function tablaHTML(id, headers, rows=2) {
+  const ths = headers.map(h=>`<th>${h}</th>`).join('');
+  const tds = headers.map(()=>`<td><input type="text" oninput="programarAutoGuardado()"></td>`).join('');
+  const tbrows = Array.from({length:rows},()=>`<tr>${tds}</tr>`).join('');
+  return `<div class="twrap"><table class="reg" id="${id}"><thead><tr>${ths}</tr></thead><tbody>${tbrows}</tbody></table></div>
+  <button class="btn-add" onclick="addRow('${id}',${headers.length})">+ Agregar fila</button>`;
+}
+
+function renderFormPE() {
+  const c = document.getElementById('form-content');
+  c.innerHTML = `
+  <!-- DATOS GENERALES -->
+  <div class="datos-card">
+    <div class="dato-item"><label>Fecha</label><input type="date" id="g-fecha" data-campo="fecha" onchange="programarAutoGuardado()"></div>
+    <div class="dato-item"><label>Turno</label><select id="g-turno" data-campo="turno" onchange="programarAutoGuardado()"><option>1</option><option>2</option><option>3</option></select></div>
+    <div class="dato-item"><label>Código</label><input type="text" data-campo="codigo" placeholder="Ej. T2-226" oninput="programarAutoGuardado()"></div>
+  </div>
+
+  ${secHTML('empaque','📦','Empaque', mkResponsables('empaque','Responsable(s) Empaque') + `
+    ${pregHTML(1,'¿Qué novedades se presentaron en empaque?','emp_nov','Describa las novedades del turno...')}
+    ${pregHTML(2,'¿Se lavaron máquinas durante el turno?','emp_lavado','¿Cuáles máquinas se lavaron?')}
+    ${pregHTML(3,'¿Hay máquinas fuera de servicio?','emp_fs','¿Cuáles y cuál es el motivo?')}
+    ${pregHTML(4,'¿Salieron exportaciones durante el turno?','emp_exp','Especifique qué exportaciones y destinos',
+      'textarea', fotoHTML('Fotos de exportaciones','Adjuntar foto por cada exportación'))}
+    ${pregHTML(5,'¿Hay producto en tolvas con más de 2 días de producción?','emp_tolvas','¿Qué producto, tolva y fecha de producción?')}
+    ${pregHTML(6,'¿Se generó producto no conforme (PNC)?','emp_pnc','Descripción, causa y cantidad del PNC...',
+      'textarea', fotoHTML('Fotos del PNC','Adjuntar evidencia fotográfica'))}
+    ${pregHTML(7,'¿Se registraron láminas no conformes?','emp_laminas','Detalle tipo de no conformidad y cantidad...')}
+    ${pregHTML(8,'¿Hubo novedades con fechas de empaque?','emp_fechas','Describa la novedad de fechas...')}
+    ${pregHTML(9,'¿Se realizaron cambios o autorizaciones especiales de producto?','emp_cambios','Especifique el cambio o autorización...')}
+    ${pregHTML(10,'¿Se realizó liberación de sticker?','emp_sticker','Indique cuáles productos y lotes...')}
+    ${pregSoloHTML(11,'¿Qué productos se pasaron por Rayos X (RX)?','emp_rx','Liste los productos inspeccionados...')}
+    ${pregHTML(12,'¿Hubo máquinas con desviaciones de peso?','emp_peso','¿Cuáles máquinas, desviación y acción tomada?')}
+    ${pregHTML(13,'¿Se detectaron productos bajos de contenido que cumplen gramaje?','emp_contenido','Especifique el producto y valores...')}
+    <div class="sep"></div>
+    <div class="preg-label"><strong>Registro de productos empacados</strong></div>
+    ${tablaHTML('t-empaque',['Producto / Referencia','Cantidad','Lote','Observaciones'])}
+  `)}
+
+  ${secHTML('extruido','⚙️','Extruido', mkResponsables('extruido','Responsable(s) Extruido') + `
+    ${pregSoloHTML(1,'¿Qué extrusores trabajaron en el turno?','ext_op','Liste los extrusores en operación...')}
+    ${pregSoloHTML(2,'¿Qué extrusores se limpiaron?','ext_limp','Indique cuáles y el tipo de limpieza...')}
+    ${pregHTML(3,'¿Se realizaron limpiezas de líneas?','ext_lineas','Especifique qué líneas y tipo de limpieza...')}
+    ${pregHTML(4,'¿Se agregó papa, extruido o rosquilla al proceso?','ext_adicion','Indique qué se agregó y cantidades (kg)...')}
+    ${pregHTML(5,'¿Las densidades estuvieron dentro de los parámetros?','ext_dens','Si hubo desviaciones, indique valores y causa...')}
+    ${pregHTML(6,'¿Las dimensiones del producto cumplieron especificaciones?','ext_dim','Si no cumplieron, detalle los valores...')}
+    ${pregHTML(7,'¿Se generó producto no conforme (PNC)?','ext_pnc','Descripción, causa y cantidad...',
+      'textarea', fotoHTML('Fotos de incumplimientos / PNC','Solo fotos de lo que no cumplió'))}
+    <div class="sep"></div>
+    ${tablaHTML('t-extruido',['Referencia','Densidad','¿Cumple densidad?','¿Cumple dimensiones?','Observaciones'])}
+  `)}
+
+  ${secHTML('rosquilla','🔵','Rosquilla', mkResponsables('rosquilla','Responsable(s) Rosquilla') + `
+    <div class="grid2" style="margin-bottom:12px">
+      <div><div class="preg-label"><span class="pnum">1</span>¿Qué formulación se usó?</div><input class="rinp" type="text" data-campo="ros_form" placeholder="Nombre o código" oninput="programarAutoGuardado()"></div>
+      <div><div class="preg-label"><span class="pnum">2</span>¿Qué queso se utilizó?</div><input class="rinp" type="text" data-campo="ros_queso" placeholder="Tipo / proveedor" oninput="programarAutoGuardado()"></div>
+    </div>
+    ${pregHTML(3,'¿Se liberó queso durante el turno? (Si sí, reportar PNC)','ros_queso_lib','Detalle del queso liberado y PNC...')}
+    ${pregHTML(4,'¿Faltó alguna materia prima?','ros_mp','¿Cuál faltó y cómo afectó el proceso?')}
+    <div class="pregunta"><div class="preg-label"><span class="pnum">5</span>Hornos: ¿cuántos funcionales y cuántos en operación?</div>
+      <div class="grid2"><div><input class="rinp" type="text" data-campo="ros_hornos_f" placeholder="Hornos funcionales" oninput="programarAutoGuardado()"></div>
+      <div><input class="rinp" type="text" data-campo="ros_hornos_op" placeholder="Hornos en operación" oninput="programarAutoGuardado()"></div></div>
+      <textarea class="rdet" style="margin-top:7px" data-campo="ros_hornos_nov" placeholder="Novedades de hornos..." oninput="programarAutoGuardado()"></textarea></div>
+    ${pregSoloHTML(6,'¿Cómo salió el producto y qué acción se tomó?','ros_producto','Describa el estado y acciones tomadas...')}
+    ${pregHTML(7,'¿Se generó producto no conforme (PNC)?','ros_pnc','Cantidad, causa y disposición...')}
+    ${pregHTML(8,'¿Las densidades estuvieron dentro de los parámetros?','ros_dens','Si hubo desviaciones, indique valores y causa...')}
+    <div class="sep"></div>
+    ${tablaHTML('t-rosquilla',['Referencia','Cant. Batch','Corte Crudo','Peso Final','T° Amb.','T° Masa','T. Reposo','Humedad %','T° Cuarto'],2)}
+    ${fotoHTML('Fotos de cambios y PNC — Rosquilla','Solo de cambios relevantes y producto no conforme')}
+  `)}
+
+  ${secHTML('tortillas','🟤','Tortillas', mkResponsables('tortillas','Responsable(s) Tortillas') + `
+    ${pregHTML(1,'¿Se cumplieron los tiempos de reposo establecidos?','tort_reposo','Si no se cumplieron, indique motivo y tiempos reales...')}
+    ${pregHTML(2,'¿Se generó producto no conforme (PNC)?','tort_pnc','Cantidad, causa y disposición...')}
+    ${pregHTML(3,'¿Se garantizó la selección del producto no conforme?','tort_sel','Describa cómo se realizó la selección...')}
+    ${pregHTML(4,'¿Se utilizó maíz del tanque sedimentador de finos?','tort_maiz','Si sí, indique cantidad utilizada...')}
+    ${pregHTML(5,'¿La saborización fue correcta?','tort_sabor','Si no fue correcta, describa la desviación...')}
+    ${pregHTML(6,'¿Se detectó maíz contaminado por plagas?','tort_plagas','Tipo de contaminación y acción tomada...')}
+    ${pregHTML(7,'¿Hubo equipos en mantenimiento?','tort_mto','¿Cuáles equipos y qué tipo de mantenimiento?')}
+    <div class="sep"></div>
+    ${tablaHTML('t-tortillas',['Referencia','Peso Crudo','Peso Horneado','T. Reposo','T. Horneado','T. Freído','% Sabor.','Responsable'])}
+    ${fotoHTML('Fotos de incumplimientos — Tortillas','Solo de lo que salió mal')}
+  `)}
+
+  ${secHTML('trocillo','🟧','Trocillo', mkResponsables('trocillo','Responsable(s) Trocillo') + `
+    <div class="grid2" style="margin-bottom:12px">
+      <div><div class="preg-label"><span class="pnum">1</span>Tipo de aceite utilizado</div>
+        <select class="rinp" data-campo="troc_aceite" onchange="programarAutoGuardado()"><option>Nuevo</option><option>Reutilizado</option><option>Mezcla</option></select></div>
+      <div><div class="preg-label"><span class="pnum">2</span>¿Hubo exportación en el turno?</div>
+        <div class="sino-row" data-key="troc_exp"><button class="rbtn" onclick="siNo(this,'si')">Sí</button><button class="rbtn" onclick="siNo(this,'no')">No</button></div></div>
+    </div>
+    ${pregHTML(3,'¿Se realizaron reprocesos (molienda o trocillo en agua)?','troc_rep','Tipo de reproceso y cantidad (kg)...')}
+    ${pregHTML(4,'¿El proceso arrancó con mezcla de aceite?','troc_mezcla','Describa la mezcla utilizada...')}
+    ${pregHTML(5,'¿Las dimensiones del producto cumplieron especificaciones?','troc_dim','Si no cumplieron, registre los valores...',
+      'textarea', fotoHTML('Foto de dimensiones (solo si no cumple)','Adjuntar si hubo incumplimiento'))}
+    ${pregHTML(6,'¿Las densidades estuvieron dentro de parámetros?','troc_dens','Si hubo desviaciones, valores y causa...')}
+    ${pregHTML(7,'¿Hubo algún equipo con falla?','troc_falla','¿Cuál equipo y cuál fue la falla?')}
+    <div class="sep"></div>
+    ${tablaHTML('t-trocillo',['Referencia','Peso Crudo','Peso Freído','T. Reposo','T. Freído','Responsable'])}
+    <div class="sep"></div>
+    <div class="preg-label" style="margin-bottom:8px"><strong>Dimensiones antes del reposo</strong></div>
+    <div class="twrap"><table class="reg" id="t-troc-antes">
+      <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td></tr>
+      </tbody>
+    </table></div>
+    <div class="preg-label" style="margin:12px 0 8px"><strong>Dimensiones después del freído</strong></div>
+    <div class="twrap"><table class="reg" id="t-troc-despues">
+      <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td><td><input type="text" oninput="programarAutoGuardado()"></td></tr>
+      </tbody>
+    </table></div>
+  `)}
+
+  ${secHTML('papa','🥔','Líneas de Papa — PC6, PC4, DAF', mkResponsables('papa','Responsable(s) Líneas de Papa') + `
+    <div class="grid2" style="margin-bottom:12px">
+      <div><div class="preg-label"><span class="pnum">1</span>Tipo de papa</div>
+        <select class="rinp" data-campo="papa_tipo" onchange="programarAutoGuardado()"><option>Cachirry</option><option>Pareja</option><option>R12</option><option>Mezcla</option></select></div>
+      <div><div class="preg-label"><span class="pnum">2</span>T° cuarto de papa</div>
+        <input class="rinp" type="text" data-campo="papa_temp" placeholder="°C" oninput="programarAutoGuardado()"></div>
+    </div>
+    ${pregHTML(3,'¿Se realizaron mezclas de papa?','papa_mezcla','Tipos mezclados y proporciones...')}
+    ${pregHTML(4,'¿Se utilizó papa de guacal o de bulto? (activación del lavador)','papa_guacal','Especifique y confirme si el lavador fue activado...')}
+    ${pregHTML(5,'¿Se calibraron y limpiaron tambores? ¿Cuántos?','papa_tambores','Número de tambores calibrados...')}
+    ${pregHTML(6,'¿Se realizaron limpiezas de tanques?','papa_tanques','Describa las limpiezas realizadas...',
+      'textarea', fotoHTML('Fotos de limpieza de tanques (obligatorio)','Evidencia fotográfica de cada tanque'))}
+    ${pregHTML(7,'¿Se limpiaron bombos para cambio de referencia?','papa_bombos','¿Qué bombos y para qué cambio?')}
+    ${pregHTML(8,'¿Se reprocesó papa de otro sabor?','papa_reproc','Especifique referencia y cantidad...')}
+    <div class="pregunta"><div class="preg-label"><span class="pnum">9</span>Tipo de aceite y marca</div>
+      <div class="grid2"><select class="rinp" data-campo="papa_aceite" onchange="programarAutoGuardado()"><option>Nuevo</option><option>Reutilizado</option></select>
+      <select class="rinp" data-campo="papa_marca_aceite" onchange="programarAutoGuardado()"><option>Oleína</option><option>Aceite Blend</option></select></div></div>
+    ${pregHTML(10,'¿Se detectó papa cruda que requiriera reproceso?','papa_cruda','Cantidad y causa...')}
+    ${pregHTML(11,'¿Hubo producto no conforme?','papa_pnc','Detalle, causa y disposición...',
+      'textarea', fotoHTML('Fotos de PNC y exportaciones','Adjuntar evidencia fotográfica'))}
+    <div class="sep"></div>
+    ${tablaHTML('t-papa',['Referencia','% Saborización','Observaciones'],3)}
+  `)}
+
+  ${secHTML('pellet','🔶','Pellet', mkResponsables('pellet','Responsable(s) Pellet') + `
+    <div class="pregunta"><div class="preg-label"><span class="pnum">1</span>¿Se realizaron limpiezas? ¿De qué tipo?</div>
+      <div class="sino-row" data-key="pell_limp"><button class="rbtn" onclick="siNo(this,'si')">Sí</button><button class="rbtn" onclick="siNo(this,'no')">No</button></div>
+      <select class="rinp" data-campo="pell_limp_tipo" style="margin-bottom:6px" onchange="programarAutoGuardado()"><option>Profunda</option><option>Parcial</option><option>Cambio de referencia</option></select>
+      <textarea class="rdet" data-campo="pell_limp_det" placeholder="Describa las limpiezas realizadas..." oninput="programarAutoGuardado()"></textarea></div>
+    <div class="pregunta"><div class="preg-label"><span class="pnum">2</span>Tipo de aceite utilizado</div>
+      <select class="rinp" data-campo="pell_aceite" onchange="programarAutoGuardado()"><option>Nuevo</option><option>Reutilizado</option></select></div>
+    ${pregHTML(3,'¿Las temperaturas se mantuvieron por debajo de 180°C?','pell_temp','Si se superaron, indique los valores...')}
+    ${pregHTML(4,'¿Las densidades estuvieron dentro de parámetros?','pell_dens','Si hubo desviaciones, valores y causa...')}
+    ${pregHTML(5,'¿Se realizaron mezclas de producto? (ej. 2 chicharrones)','pell_mezcla','Especifique mezclas y proporciones...')}
+    ${pregHTML(6,'¿Se realizaron reprocesos?','pell_reproc','Tipo de reproceso y cantidad...')}
+    ${pregHTML(7,'¿Hay materia prima con fechas cortas?','pell_fechas','¿Cuál MP y cuáles son las fechas?')}
+    ${pregHTML(8,'¿Se generó producto no conforme (PNC)?','pell_pnc','Descripción, causa y disposición...')}
+    ${pregSoloHTML(9,'¿Qué acciones correctivas se tomaron en el turno?','pell_acc','Describa las acciones implementadas...')}
+    <div class="pregunta"><div class="preg-label"><span class="pnum">10</span>TPM del turno</div>
+      <input class="rinp" type="text" data-campo="pell_tpm" placeholder="Registro TPM" oninput="programarAutoGuardado()"></div>
+    <div class="sep"></div>
+    ${tablaHTML('t-pellet',['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'])}
+    ${fotoHTML('Fotos de tanque y PNC — Pellet','Solo fotos de tanque y producto no conforme')}
+  `)}
+
+  <!-- CIERRE -->
+  <div class="seccion">
+    <div class="sec-header" onclick="toggleSec(this)">
+      <div class="sec-icon">✍️</div>
+      <div class="sec-titulo">Observaciones finales y firmas</div>
+      <span class="sec-chevron">▼</span>
+    </div>
+    <div class="sec-body">
+      <div class="pregunta"><div class="preg-label">Observaciones generales del turno</div>
+        <textarea class="rdet" style="min-height:80px" data-campo="obs_finales" placeholder="Comentarios finales del turno..." oninput="programarAutoGuardado()"></textarea></div>
+      <div class="firma-row">
+        <div class="firma-box"><div class="firma-lbl">Responsable de Calidad</div>
+          <canvas class="fcanvas" id="canvas-cal" width="240" height="56"></canvas>
+          <button class="btn-limpiar" onclick="limpiarFirma('canvas-cal')">✕ Limpiar</button>
+          <div style="font-size:11px;color:var(--txt-s);margin-top:4px" id="nom-cal">—</div></div>
+        <div class="firma-box"><div class="firma-lbl">Responsable de Procesos</div>
+          <canvas class="fcanvas" id="canvas-proc" width="240" height="56"></canvas>
+          <button class="btn-limpiar" onclick="limpiarFirma('canvas-proc')">✕ Limpiar</button>
+          <div style="font-size:11px;color:var(--txt-s);margin-top:4px" id="nom-proc">—</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('g-fecha').valueAsDate = new Date();
+  setTimeout(() => { setupCanvas('canvas-cal'); setupCanvas('canvas-proc'); renderTabsEstado(); }, 100);
+}
+
+/* ══════ RENDER: MATERIA PRIMA ══════ */
+function renderFormMP() {
+  const c = document.getElementById('form-content');
+  c.innerHTML = `
+  <div class="datos-card">
+    <div class="dato-item"><label>Fecha</label><input type="date" id="g-fecha" data-campo="fecha" onchange="programarAutoGuardado()"></div>
+    <div class="dato-item"><label>Código</label><input type="text" data-campo="codigo" placeholder="Ej. MP-226" oninput="programarAutoGuardado()"></div>
+  </div>
+
+  ${secHTML('mp','🌿','Recepción de Materia Prima', mkResponsables('mp','Responsable(s) Materia Prima') + `
+    ${pregHTML(1,'¿Se identificaron materias primas con fechas cortas en bodega?','mp_fechas','¿Cuáles MP y cuáles son sus fechas?')}
+    ${pregHTML(2,'¿Se realizó rotación del cuarto de papa?','mp_rotacion','Describa la rotación o el motivo por el que no se realizó...')}
+    ${pregHTML(3,'¿Se midieron los sólidos totales?','mp_solidos','Registre el valor medido (%)', 'input')}
+    ${pregHTML(4,'¿Compras aceptó todos los insumos recibidos?','mp_compras','Si hubo rechazos, especifique cuáles y el motivo...')}
+    ${fotoHTML('Fotos de recepciones del turno','Una foto por cada recepción realizada')}
+    <div class="sep"></div>
+    <div class="preg-label" style="margin-bottom:8px"><strong>Registro por proveedor</strong></div>
+    ${tablaHTML('t-mp',['Proveedor','Referencia','% Aceptación','Sólidos totales','Observaciones'],2)}
+  `)}
+
+  <div class="seccion">
+    <div class="sec-header" onclick="toggleSec(this)">
+      <div class="sec-icon">✍️</div><div class="sec-titulo">Observaciones y firma</div>
+      <span class="sec-chevron">▼</span>
+    </div>
+    <div class="sec-body">
+      <textarea class="rdet" style="min-height:70px" data-campo="mp_obs" placeholder="Observaciones generales..." oninput="programarAutoGuardado()"></textarea>
+      <div class="firma-row" style="margin-top:14px">
+        <div class="firma-box"><div class="firma-lbl">Responsable de Materia Prima</div>
+          <canvas class="fcanvas" id="canvas-mp" width="240" height="56"></canvas>
+          <button class="btn-limpiar" onclick="limpiarFirma('canvas-mp')">✕ Limpiar</button></div>
+        <div class="firma-box"><div class="firma-lbl">Jefe de turno / Supervisor</div>
+          <canvas class="fcanvas" id="canvas-jefe" width="240" height="56"></canvas>
+          <button class="btn-limpiar" onclick="limpiarFirma('canvas-jefe')">✕ Limpiar</button></div>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('g-fecha').valueAsDate = new Date();
+  setTimeout(() => { setupCanvas('canvas-mp'); setupCanvas('canvas-jefe'); }, 100);
+}
+
+/* ══════ GENERACIÓN PDF ══════ */
+async function generarPDF() {
+  if(!window.jspdf){ toast('Cargando librería PDF...',''); setTimeout(generarPDF,1000); return; }
+  toast('Generando PDF...','');
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'p', unit:'mm', format:'a4'});
+  const PW=210, PH=297, ML=15, MR=15, MT=20, MB=20;
+  const CW=PW-ML-MR;
+  let y=MT; let pg=1;
+
+  const AZUL=[13,45,78], AZUL_M=[26,77,122], AZUL_CL=[232,242,251];
+  const VERDE=[10,110,74], VERDE_CL=[230,245,239];
+  const GRIS=[245,246,248], GRIS_M=[216,221,230];
+  const BLANCO=[255,255,255], NEGRO=[26,31,46], SUAVE=[90,100,120];
+  const ROJO=[192,57,43], ROJO_CL=[253,240,239];
+
+  function nuevaPag() {
+    pie(); doc.addPage(); pg++; y=MT; cabecera();
+  }
+
+  function check(h=10) { if(y+h > PH-MB) nuevaPag(); }
+
+  function cabecera() {
+    doc.setFillColor(...AZUL); doc.rect(0,0,PW,14,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+    const fecha = document.querySelector('[data-campo="fecha"]')?.value||'';
+    const turno = document.querySelector('[data-campo="turno"]')?.value||'';
+    const cod   = document.querySelector('[data-campo="codigo"]')?.value||'';
+    const tipo  = tipoActual==='pe'?'Informe de Procesos y Empaque':'Informe de Materia Prima';
+    doc.text('Productos Vicky S.A.S. — '+tipo, ML, 9);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text(`Fecha: ${fecha}  |  Turno: ${turno}  |  Código: ${cod}`, ML, 13);
+    doc.text(`Pág. ${pg}`, PW-ML, 13, {align:'right'});
+  }
+
+  function pie() {
+    doc.setFillColor(...GRIS_M); doc.rect(0,PH-8,PW,8,'F');
+    doc.setTextColor(...SUAVE); doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text('Documento confidencial — Productos Vicky S.A.S.', PW/2, PH-3, {align:'center'});
+  }
+
+  function titulo(txt, nivel=1) {
+    check(14);
+    if(nivel===1){
+      doc.setFillColor(...AZUL_M); doc.rect(ML,y,CW,9,'F');
+      doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
+      doc.text(txt.toUpperCase(), ML+3, y+6.2);
+      y+=12;
+    } else {
+      doc.setFillColor(...AZUL_CL); doc.rect(ML,y,CW,7,'F');
+      doc.setDrawColor(...AZUL_M); doc.rect(ML,y,CW,7,'S');
+      doc.setTextColor(...AZUL_M); doc.setFontSize(9); doc.setFont('helvetica','bold');
+      doc.text(txt, ML+3, y+5);
+      y+=9;
+    }
+  }
+
+  function campo(label, valor, color=null) {
+    check(7);
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...SUAVE);
+    doc.text(label+':', ML+2, y+5);
+    const lw = doc.getTextWidth(label+':')+ML+4;
+    doc.setFont('helvetica','normal');
+    if(color) doc.setTextColor(...color); else doc.setTextColor(...NEGRO);
+    const lines = doc.splitTextToSize(valor||'—', CW-lw-2);
+    doc.text(lines, lw, y+5);
+    y += Math.max(7, lines.length*5);
+  }
+
+  function campoBloque(label, valor, sino=null) {
+    if(!valor && sino==='no') return;
+    if(!valor || valor.trim()==='') return;
+    check(12);
+    const bg = sino==='no'?ROJO_CL:GRIS;
+    doc.setFillColor(...bg); doc.rect(ML,y,CW,6,'F');
+    doc.setDrawColor(...GRIS_M); doc.rect(ML,y,CW,6,'S');
+    doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.setTextColor(...(sino==='no'?ROJO:AZUL_M));
+    doc.text(label, ML+2, y+4.5);
+    const sw = sino ? (sino==='si'?'✓ SÍ':'✗ NO') : '';
+    if(sw){ doc.setFont('helvetica','bold'); doc.setFontSize(8);
+      doc.setTextColor(...(sino==='si'?VERDE:ROJO));
+      doc.text(sw, PW-MR-2, y+4.5, {align:'right'}); }
+    y+=7;
+    if(valor && valor.trim() && sino!=='no'){
+      check(10);
+      doc.setFillColor(252,252,252); doc.rect(ML,y,CW,1,'F');
+      const lines=doc.splitTextToSize(valor, CW-6);
+      const h=lines.length*4.5+4;
+      check(h);
+      doc.setFillColor(252,252,252); doc.rect(ML,y,CW,h,'F');
+      doc.setDrawColor(...GRIS_M); doc.rect(ML,y,CW,h,'S');
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...NEGRO);
+      doc.text(lines, ML+3, y+4);
+      y+=h+2;
+    }
+  }
+
+  function resp(label, area) {
+    const rs = getResponsablesStr(area);
+    if(rs){ check(7); campo('Responsable(s)', rs); }
+  }
+
+  function tabla(headers, rows) {
+    if(!rows||!rows.length) return;
+    const validRows = rows.filter(r => r.some(v=>v&&v.trim()));
+    if(!validRows.length) return;
+    check(20);
+    const colW = CW/headers.length;
+    // Header
+    doc.setFillColor(...AZUL); doc.rect(ML,y,CW,6,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    headers.forEach((h,i) => doc.text(h, ML+i*colW+2, y+4.2));
+    y+=6;
+    validRows.forEach((row,ri) => {
+      const rh=6; check(rh);
+      doc.setFillColor(...(ri%2===0?GRIS:BLANCO)); doc.rect(ML,y,CW,rh,'F');
+      doc.setDrawColor(...GRIS_M);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...NEGRO);
+      row.forEach((v,i) => doc.text(String(v||''), ML+i*colW+2, y+4.2));
+      y+=rh;
+    });
+    doc.setDrawColor(...AZUL_M); doc.rect(ML,y-validRows.length*6-6,CW,validRows.length*6+6,'S');
+    y+=3;
+  }
+
+  async function fotos(gridEl) {
+    if(!gridEl) return;
+    const imgs = gridEl.querySelectorAll('.fitem img');
+    if(!imgs.length) return;
+    check(8);
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...AZUL_M);
+    doc.text('Evidencia fotográfica:', ML, y+5); y+=8;
+    const fw=55, fh=42, gap=4, perRow=3;
+    let col=0, rowY=y;
+    for(const img of imgs){
+      check(fh+10);
+      if(col>=perRow){col=0;rowY=y;y+=fh+10;}
+      const x=ML+col*(fw+gap);
+      try{
+        doc.addImage(img.src,'JPEG',x,rowY,fw,fh,'','MEDIUM');
+        doc.setDrawColor(...GRIS_M); doc.rect(x,rowY,fw,fh,'S');
+        const cap=img.nextElementSibling?.value||'';
+        if(cap){
+          doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(...SUAVE);
+          doc.text(cap,x+fw/2,rowY+fh+4,{align:'center',maxWidth:fw});
+        }
+      }catch(e){}
+      col++;
+      if(col===1&&col<=perRow) y=rowY+fh+10;
+    }
+    if(col>0) y=rowY+fh+10;
+    y+=2;
+  }
+
+  function getTablaRows(id) {
+    const t=document.getElementById(id); if(!t) return [];
+    return [...t.querySelectorAll('tbody tr')].map(tr=>[...tr.querySelectorAll('input,select')].map(el=>el.value));
+  }
+
+  function getSiNo(key) {
+    const row=document.querySelector(`.sino-row[data-key="${key}"]`); if(!row) return null;
+    const act=row.querySelector('.rbtn.si,.rbtn.no');
+    return act?(act.classList.contains('si')?'si':'no'):null;
+  }
+
+  function getVal(campo){ return document.querySelector(`[data-campo="${campo}"]`)?.value||''; }
+  function getResponsablesStr(area){ return getResponsables(area).join(', ')||'—'; }
+
+  // ── PORTADA ──
+  doc.setFillColor(...AZUL); doc.rect(0,0,PW,50,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  const tituloPDF = tipoActual==='pe'?'INFORME DE CALIDAD E INOCUIDAD':'INFORME DE MATERIA PRIMA';
+  doc.text(tituloPDF, PW/2, 22, {align:'center'});
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text('PROCESOS Y EMPAQUE — PRODUCTOS VICKY S.A.S.', PW/2, 31, {align:'center'});
+  doc.setFontSize(9); doc.text('Documento de Control de Calidad e Inocuidad', PW/2, 39, {align:'center'});
+
+  doc.setFillColor(...AZUL_CL); doc.rect(ML,55,CW,36,'F');
+  doc.setDrawColor(...AZUL_M); doc.rect(ML,55,CW,36,'S');
+  doc.setTextColor(...AZUL_M); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  const fecha=getVal('fecha'), turno=getVal('turno'), cod=getVal('codigo');
+  const infoRows=[['Fecha:',fecha||'—'],['Turno:',turno||'—'],['Código:',cod||'—']];
+  if(tipoActual==='pe'){
+    infoRows.push(['Resp. Calidad:', getResponsablesStr('empaque')]);
+    infoRows.push(['Resp. Procesos:', getResponsablesStr('extruido')]);
+  } else {
+    infoRows.push(['Responsable MP:', getResponsablesStr('mp')]);
+  }
+  infoRows.forEach(([l,v],i)=>{
+    doc.setFont('helvetica','bold'); doc.setTextColor(...AZUL_M);
+    doc.text(l, ML+5, 63+i*7);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...NEGRO);
+    doc.text(v, ML+55, 63+i*7);
+  });
+  y=100;
+  doc.setTextColor(...SUAVE); doc.setFont('helvetica','italic'); doc.setFontSize(8);
+  doc.text('Generado: '+new Date().toLocaleString('es-CO'), PW/2, 96, {align:'center'});
+  pie(); doc.addPage(); pg++; y=MT; cabecera();
+
+  if(tipoActual==='pe'){
+    // ── EMPAQUE ──
+    titulo('1. Empaque'); resp('Responsable(s)', 'empaque');
+    campoBloque('Novedades del turno', getVal('emp_nov_det'));
+    campoBloque('Máquinas lavadas', getVal('emp_lavado_det'), getSiNo('emp_lavado'));
+    campoBloque('Máquinas fuera de servicio', getVal('emp_fs_det'), getSiNo('emp_fs'));
+    campoBloque('Exportaciones', getVal('emp_exp_det'), getSiNo('emp_exp'));
+    await fotos(document.querySelectorAll('.fgrid')[0]);
+    campoBloque('Producto en tolvas +2 días', getVal('emp_tolvas_det'), getSiNo('emp_tolvas'));
+    campoBloque('Producto no conforme (PNC)', getVal('emp_pnc_det'), getSiNo('emp_pnc'));
+    await fotos(document.querySelectorAll('.fgrid')[1]);
+    campoBloque('Láminas no conformes', getVal('emp_laminas_det'), getSiNo('emp_laminas'));
+    campoBloque('Novedades fechas de empaque', getVal('emp_fechas_det'), getSiNo('emp_fechas'));
+    campoBloque('Cambios / autorizaciones especiales', getVal('emp_cambios_det'), getSiNo('emp_cambios'));
+    campoBloque('Liberación de sticker', getVal('emp_sticker_det'), getSiNo('emp_sticker'));
+    campo('Productos por RX', getVal('emp_rx'));
+    campoBloque('Desviaciones de peso', getVal('emp_peso_det'), getSiNo('emp_peso'));
+    campoBloque('Productos bajos de contenido', getVal('emp_contenido_det'), getSiNo('emp_contenido'));
+    titulo('Productos empacados', 2);
+    tabla(['Producto / Referencia','Cantidad','Lote','Observaciones'], getTablaRows('t-empaque'));
+
+    // ── EXTRUIDO ──
+    nuevaPag(); titulo('2. Extruido'); resp('Responsable(s)', 'extruido');
+    campo('Extrusores en operación', getVal('ext_op'));
+    campo('Extrusores limpiados', getVal('ext_limp'));
+    campoBloque('Limpiezas de líneas', getVal('ext_lineas_det'), getSiNo('ext_lineas'));
+    campoBloque('Adición de papa/extruido/rosquilla', getVal('ext_adicion_det'), getSiNo('ext_adicion'));
+    campoBloque('Densidades dentro de parámetros', getVal('ext_dens_det'), getSiNo('ext_dens'));
+    campoBloque('Dimensiones dentro de especificación', getVal('ext_dim_det'), getSiNo('ext_dim'));
+    campoBloque('Producto no conforme (PNC)', getVal('ext_pnc_det'), getSiNo('ext_pnc'));
+    const fgExt = [...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-extruido'));
+    await fotos(fgExt);
+    titulo('Registro extruido', 2);
+    tabla(['Referencia','Densidad','¿Cumple densidad?','¿Cumple dimensiones?','Observaciones'], getTablaRows('t-extruido'));
+
+    // ── ROSQUILLA ──
+    nuevaPag(); titulo('3. Rosquilla'); resp('Responsable(s)', 'rosquilla');
+    campo('Formulación', getVal('ros_form'));
+    campo('Queso utilizado', getVal('ros_queso'));
+    campoBloque('Liberación de queso / PNC', getVal('ros_queso_lib_det'), getSiNo('ros_queso_lib'));
+    campoBloque('Faltó materia prima', getVal('ros_mp_det'), getSiNo('ros_mp'));
+    campo('Hornos funcionales / en operación', getVal('ros_hornos_f')+' / '+getVal('ros_hornos_op'));
+    campo('Novedades de hornos', getVal('ros_hornos_nov'));
+    campo('Estado del producto y acciones', getVal('ros_producto'));
+    campoBloque('Producto no conforme (PNC)', getVal('ros_pnc_det'), getSiNo('ros_pnc'));
+    campoBloque('Densidades dentro de parámetros', getVal('ros_dens_det'), getSiNo('ros_dens'));
+    titulo('Parámetros rosquilla', 2);
+    tabla(['Referencia','Batch','Corte C.','Peso F.','T°Amb.','T°Masa','T.Reposo','Humedad','T°Cuarto'], getTablaRows('t-rosquilla'));
+    const fgRos=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-rosquilla'));
+    await fotos(fgRos);
+
+    // ── TORTILLAS ──
+    nuevaPag(); titulo('4. Tortillas'); resp('Responsable(s)', 'tortillas');
+    campoBloque('Tiempos de reposo cumplidos', getVal('tort_reposo_det'), getSiNo('tort_reposo'));
+    campoBloque('Producto no conforme (PNC)', getVal('tort_pnc_det'), getSiNo('tort_pnc'));
+    campoBloque('Selección de no conforme', getVal('tort_sel_det'), getSiNo('tort_sel'));
+    campoBloque('Maíz sedimentador utilizado', getVal('tort_maiz_det'), getSiNo('tort_maiz'));
+    campoBloque('Saborización correcta', getVal('tort_sabor_det'), getSiNo('tort_sabor'));
+    campoBloque('Maíz contaminado por plagas', getVal('tort_plagas_det'), getSiNo('tort_plagas'));
+    campoBloque('Equipos en mantenimiento', getVal('tort_mto_det'), getSiNo('tort_mto'));
+    titulo('Parámetros tortillas', 2);
+    tabla(['Referencia','P.Crudo','P.Horneado','T.Reposo','T.Horneado','T.Freído','%Sabor.','Responsable'], getTablaRows('t-tortillas'));
+    const fgTort=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-tortillas'));
+    await fotos(fgTort);
+
+    // ── TROCILLO ──
+    nuevaPag(); titulo('5. Trocillo'); resp('Responsable(s)', 'trocillo');
+    campo('Tipo de aceite', getVal('troc_aceite'));
+    campoBloque('Exportación en turno', '', getSiNo('troc_exp'));
+    campoBloque('Reprocesos realizados', getVal('troc_rep_det'), getSiNo('troc_rep'));
+    campoBloque('Proceso con mezcla de aceite', getVal('troc_mezcla_det'), getSiNo('troc_mezcla'));
+    campoBloque('Dimensiones dentro de especificación', getVal('troc_dim_det'), getSiNo('troc_dim'));
+    campoBloque('Densidades dentro de parámetros', getVal('troc_dens_det'), getSiNo('troc_dens'));
+    campoBloque('Equipos con falla', getVal('troc_falla_det'), getSiNo('troc_falla'));
+    titulo('Parámetros trocillo', 2);
+    tabla(['Referencia','Peso Crudo','Peso Freído','T. Reposo','T. Freído','Responsable'], getTablaRows('t-trocillo'));
+    titulo('Dimensiones antes reposo', 2);
+    tabla(['Variable','M1','M2','M3','M4','M5'], getTablaRows('t-troc-antes'));
+    titulo('Dimensiones después freído', 2);
+    tabla(['Variable','M1','M2','M3','M4','M5'], getTablaRows('t-troc-despues'));
+    const fgTroc=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-trocillo'));
+    await fotos(fgTroc);
+
+    // ── PAPA ──
+    nuevaPag(); titulo('6. Líneas de Papa — PC6, PC4, DAF'); resp('Responsable(s)', 'papa');
+    campo('Tipo de papa', getVal('papa_tipo'));
+    campo('T° cuarto de papa', getVal('papa_temp')+' °C');
+    campo('Tipo de aceite', getVal('papa_aceite')+' / '+getVal('papa_marca_aceite'));
+    campoBloque('Mezclas de papa', getVal('papa_mezcla_det'), getSiNo('papa_mezcla'));
+    campoBloque('Papa de guacal / lavador', getVal('papa_guacal_det'), getSiNo('papa_guacal'));
+    campoBloque('Calibración de tambores', getVal('papa_tambores_det'), getSiNo('papa_tambores'));
+    campoBloque('Limpiezas de tanques', getVal('papa_tanques_det'), getSiNo('papa_tanques'));
+    const fgPapa=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-papa'));
+    await fotos(fgPapa);
+    campoBloque('Limpiezas de bombos', getVal('papa_bombos_det'), getSiNo('papa_bombos'));
+    campoBloque('Reproceso de papa de otro sabor', getVal('papa_reproc_det'), getSiNo('papa_reproc'));
+    campoBloque('Papa cruda detectada', getVal('papa_cruda_det'), getSiNo('papa_cruda'));
+    campoBloque('Producto no conforme (PNC)', getVal('papa_pnc_det'), getSiNo('papa_pnc'));
+    titulo('Registro referencias papa', 2);
+    tabla(['Referencia','% Saborización','Observaciones'], getTablaRows('t-papa'));
+
+    // ── PELLET ──
+    nuevaPag(); titulo('7. Pellet'); resp('Responsable(s)', 'pellet');
+    campo('Tipo de aceite', getVal('pell_aceite'));
+    campo('TPM', getVal('pell_tpm'));
+    campo('Tipo de limpieza', getVal('pell_limp_tipo'));
+    campo('Detalle limpiezas', getVal('pell_limp_det'));
+    campoBloque('Temperaturas ≤ 180°C', getVal('pell_temp_det'), getSiNo('pell_temp'));
+    campoBloque('Densidades dentro de parámetros', getVal('pell_dens_det'), getSiNo('pell_dens'));
+    campoBloque('Mezclas de producto', getVal('pell_mezcla_det'), getSiNo('pell_mezcla'));
+    campoBloque('Reprocesos', getVal('pell_reproc_det'), getSiNo('pell_reproc'));
+    campoBloque('MP con fechas cortas', getVal('pell_fechas_det'), getSiNo('pell_fechas'));
+    campoBloque('Producto no conforme (PNC)', getVal('pell_pnc_det'), getSiNo('pell_pnc'));
+    campo('Acciones correctivas', getVal('pell_acc'));
+    titulo('Registro referencias pellet', 2);
+    tabla(['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'], getTablaRows('t-pellet'));
+    const fgPell=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-pellet'));
+    await fotos(fgPell);
+
+  } else {
+    // ── MATERIA PRIMA ──
+    titulo('Recepción de Materia Prima'); resp('Responsable(s)', 'mp');
+    campoBloque('MP con fechas cortas', getVal('mp_fechas_det'), getSiNo('mp_fechas'));
+    campoBloque('Rotación cuarto de papa', getVal('mp_rotacion_det'), getSiNo('mp_rotacion'));
+    campoBloque('Sólidos totales medidos', getVal('mp_solidos_det'), getSiNo('mp_solidos'));
+    campoBloque('Aceptación por compras', getVal('mp_compras_det'), getSiNo('mp_compras'));
+    const fgMP=document.querySelectorAll('.fgrid')[0];
+    await fotos(fgMP);
+    titulo('Registro por proveedor', 2);
+    tabla(['Proveedor','Referencia','% Aceptación','Sólidos totales','Observaciones'], getTablaRows('t-mp'));
+    campo('Observaciones generales', getVal('mp_obs'));
+  }
+
+  // ── CIERRE ──
+  nuevaPag(); titulo('Observaciones Finales y Firmas');
+  campo('Observaciones del turno', getVal('obs_finales'));
+  y+=6; check(50);
+  doc.setFillColor(...GRIS); doc.rect(ML,y,CW/2-5,40,'F');
+  doc.setDrawColor(...GRIS_M); doc.rect(ML,y,CW/2-5,40,'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...AZUL_M);
+  doc.text('Responsable de Calidad', ML+5, y+8);
+  const cCal=document.getElementById('canvas-cal')||document.getElementById('canvas-mp');
+  if(cCal && cCal.toDataURL()!==blankCanvas()) {
+    try{ doc.addImage(cCal.toDataURL(),'PNG',ML+5,y+12,CW/2-20,20,'','FAST'); }catch(e){}
+  } else {
+    doc.setDrawColor(150,150,150); doc.line(ML+5,y+28,ML+CW/2-10,y+28);
+  }
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...SUAVE);
+  doc.text('Firma', ML+CW/4-10, y+38);
+
+  const x2=ML+CW/2+5;
+  doc.setFillColor(...GRIS); doc.rect(x2,y,CW/2-5,40,'F');
+  doc.setDrawColor(...GRIS_M); doc.rect(x2,y,CW/2-5,40,'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...AZUL_M);
+  doc.text('Responsable de Procesos / Turno', x2+5, y+8);
+  const cProc=document.getElementById('canvas-proc')||document.getElementById('canvas-jefe');
+  if(cProc && cProc.toDataURL()!==blankCanvas()) {
+    try{ doc.addImage(cProc.toDataURL(),'PNG',x2+5,y+12,CW/2-20,20,'','FAST'); }catch(e){}
+  } else {
+    doc.setDrawColor(150,150,150); doc.line(x2+5,y+28,x2+CW/2-10,y+28);
+  }
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...SUAVE);
+  doc.text('Firma', x2+CW/4-10, y+38);
+  pie();
+
+  const fname=`InformeVicky_${tipoActual==='pe'?'ProcesosEmpaque':'MateriaPrima'}_${fecha||'sinFecha'}_T${turno||'0'}.pdf`;
+  doc.save(fname);
+  toast('✓ PDF generado exitosamente', 'verde');
+}
+
+function blankCanvas() {
+  const c=document.createElement('canvas');c.width=10;c.height=10;return c.toDataURL();
+}
+
+/* ── INIT ── */
+document.getElementById('g-fecha') && (document.getElementById('g-fecha').valueAsDate = new Date());
+renderBorradores();
+</script>
+</body>
+</html>
