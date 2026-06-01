@@ -5,6 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Informes de Calidad — Productos Vicky S.A.S.</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, collection, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCOhRsKLqVg3Oiys7YBmjuUXvl0h6uNBuc",
+    authDomain: "informes-vicky.firebaseapp.com",
+    projectId: "informes-vicky",
+    storageBucket: "informes-vicky.firebasestorage.app",
+    messagingSenderId: "900510412038",
+    appId: "1:900510412038:web:8e054f9f69dc5df7b3c287"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Expose DB functions globally for use in main script
+  window._fb = {
+    async guardar(id, datos) {
+      try {
+        await setDoc(doc(db, 'borradores', id), { ...datos, ts: Date.now() });
+        return true;
+      } catch(e) { console.error('Firebase guardar:', e); return false; }
+    },
+    async cargar(id) {
+      try {
+        const snap = await getDoc(doc(db, 'borradores', id));
+        return snap.exists() ? snap.data() : null;
+      } catch(e) { console.error('Firebase cargar:', e); return null; }
+    },
+    async listar() {
+      try {
+        const q = query(collection(db, 'borradores'), orderBy('ts','desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch(e) { 
+        // orderBy may fail without index, fallback
+        try {
+          const snap2 = await getDocs(collection(db, 'borradores'));
+          return snap2.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(b.ts||0)-(a.ts||0));
+        } catch(e2) { console.error('Firebase listar:', e2); return []; }
+      }
+    },
+    async eliminar(id) {
+      try {
+        await deleteDoc(doc(db, 'borradores', id));
+        return true;
+      } catch(e) { console.error('Firebase eliminar:', e); return false; }
+    }
+  };
+
+  // Signal that Firebase is ready
+  window._fbReady = true;
+  document.dispatchEvent(new Event('fbReady'));
+</script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -241,15 +296,10 @@ const {jsPDF} = window.jspdf || {};
 
 /* ══════ PERSONAS POR ÁREA ══════
    EDITAR AQUÍ para agregar/quitar responsables */
+const _P = ['Juan Sebastián Parra','Oscar Bautista','Juan Pablo Rodríguez','Yennireth Villarreal','Gloria Hernández','Valeria Hernández','Cristian Aranda','Ángel Ramírez','Katherine Florez','María Alejandra Cárdenas','Ely Padilla'];
 const PERSONAS = {
-  empaque:   ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  extruido:  ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  rosquilla: ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  tortillas: ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  trocillo:  ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  papa:      ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  pellet:    ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
-  mp:        ['Katherine Florez','Oscar Bautista Granados','Nombre Responsable 3'],
+  empaque:_P, extruido:_P, rosquilla:_P, tortillas:_P, trocillo:_P,
+  daf:_P, pc4:_P, pc6:_P, pellet:_P, mp:_P,
 };
 
 /* ══════ ESTADO GLOBAL ══════ */
@@ -257,10 +307,11 @@ let tipoActual = '';
 let borradorId = '';
 let autoSaveTimer = null;
 
-const SECCIONES_PE = ['empaque','extruido','rosquilla','tortillas','trocillo','papa','pellet'];
+const SECCIONES_PE = ['empaque','extruido','rosquilla','tortillas','trocillo','daf','pc4','pc6','pellet'];
 const SECCIONES_LABELS = {
   empaque:'Empaque', extruido:'Extruido', rosquilla:'Rosquilla',
-  tortillas:'Tortillas', trocillo:'Trocillo', papa:'Líneas de Papa',
+  tortillas:'Tortillas', trocillo:'Trocillo',
+  daf:'Papa DAF', pc4:'Papa PC4', pc6:'Papa PC6',
   pellet:'Pellet', mp:'Materia Prima'
 };
 
@@ -299,30 +350,43 @@ function toggleBorradores() {
   renderBorradores();
 }
 
-function renderBorradores() {
+async function renderBorradores() {
   const el = document.getElementById('borradores-list');
-  const keys = Object.keys(localStorage).filter(k => k.startsWith('vicky_'));
-  if(!keys.length){ el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--txt-s);font-size:13px">No hay borradores guardados</div>'; return; }
-  el.innerHTML = keys.map(k => {
-    const d = JSON.parse(localStorage.getItem(k));
+  el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--txt-s);font-size:13px">⏳ Cargando borradores...</div>';
+  if(!window._fb) {
+    // Wait for Firebase or show offline message
+    document.addEventListener('fbReady', () => renderBorradores(), { once: true });
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--txt-s);font-size:13px">⏳ Conectando con la nube...</div>';
+    return;
+  }
+  const borradores = await window._fb.listar();
+  if(!borradores.length){
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--txt-s);font-size:13px">No hay borradores guardados en la nube</div>';
+    return;
+  }
+  el.innerHTML = borradores.map(d => {
     const tipo = d.tipo === 'pe' ? '📦 Procesos y Empaque' : '🌿 Materia Prima';
+    const ts = d.ts ? new Date(d.ts).toLocaleString('es-CO') : '—';
+    const autor = d.autor || '';
     return `<div class="borrador-item">
-      <div onclick="cargarBorrador('${k}')" style="flex:1">
+      <div onclick="cargarBorrador('${d.id}')" style="flex:1">
         <div class="borrador-nombre">${tipo} — ${d.fecha||'Sin fecha'} Turno ${d.turno||'—'}</div>
-        <div class="borrador-fecha">Guardado: ${new Date(d.ts).toLocaleString('es-CO')}</div>
+        <div class="borrador-fecha">☁️ Guardado: ${ts}${autor?' · '+autor:''}</div>
       </div>
       <div class="borrador-actions">
-        <button class="btn-mini" onclick="cargarBorrador('${k}')">Continuar</button>
-        <button class="btn-mini btn-mini-rojo" onclick="eliminarBorrador('${k}',event)">Eliminar</button>
+        <button class="btn-mini" onclick="cargarBorrador('${d.id}')">Continuar</button>
+        <button class="btn-mini btn-mini-rojo" onclick="eliminarBorrador('${d.id}',event)">Eliminar</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function cargarBorrador(key) {
-  const d = JSON.parse(localStorage.getItem(key));
+async function cargarBorrador(key) {
+  toast('⏳ Cargando borrador...','');
+  const d = window._fb ? await window._fb.cargar(key) : null;
+  if(!d){ toast('⚠️ No se pudo cargar el borrador','rojo'); return; }
   tipoActual = d.tipo;
-  borradorId = key.replace('vicky_','');
+  borradorId = key;
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
   if(d.tipo==='pe'){
@@ -337,13 +401,17 @@ function cargarBorrador(key) {
     document.getElementById('tabs-wrap').style.display='none';
     renderFormMP();
   }
-  setTimeout(() => restaurarDatos(d), 200);
+  setTimeout(() => restaurarDatos(d), 300);
   window.scrollTo(0,0);
+  toast('✓ Borrador cargado','verde');
 }
 
-function eliminarBorrador(key, e) {
+async function eliminarBorrador(key, e) {
   e.stopPropagation();
-  if(confirm('¿Eliminar este borrador?')){ localStorage.removeItem(key); renderBorradores(); }
+  if(!confirm('¿Eliminar este borrador de la nube?')) return;
+  if(window._fb) await window._fb.eliminar(key);
+  renderBorradores();
+  toast('Borrador eliminado','');
 }
 
 /* ══════ TABS ESTADO ══════ */
@@ -523,21 +591,28 @@ function limpiarFirma(id){ const c=document.getElementById(id);if(c)c.getContext
 /* ══════ GUARDADO LOCAL ══════ */
 function programarAutoGuardado() {
   clearTimeout(autoSaveTimer);
-  document.getElementById('autosave-lbl').textContent='💾 Guardando...';
-  autoSaveTimer = setTimeout(() => { guardarAutoLocal(); }, 1200);
+  document.getElementById('autosave-lbl').textContent='☁️ Guardando...';
+  autoSaveTimer = setTimeout(() => { guardarNube(); }, 1500);
 }
 
-function guardarAutoLocal() {
+async function guardarNube() {
+  if(!window._fb) { 
+    document.getElementById('autosave-lbl').textContent='⚠️ Sin conexión';
+    return; 
+  }
   const datos = recopilarDatos();
-  datos.ts = Date.now();
-  localStorage.setItem('vicky_'+borradorId, JSON.stringify(datos));
-  document.getElementById('autosave-lbl').textContent='💾 Guardado';
+  const ok = await window._fb.guardar(borradorId, datos);
+  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado en nube' : '⚠️ Error al guardar';
 }
 
-function guardarBorrador() {
-  guardarAutoLocal();
-  toast('✓ Borrador guardado', 'verde');
+async function guardarBorrador() {
+  document.getElementById('autosave-lbl').textContent='☁️ Guardando...';
+  await guardarNube();
+  toast('✓ Borrador guardado en la nube', 'verde');
 }
+
+// Keep local as fallback
+function guardarAutoLocal() { guardarNube(); }
 
 function recopilarDatos() {
   const d = { tipo: tipoActual };
@@ -757,29 +832,37 @@ function renderFormPE() {
     </table></div>
   `)}
 
-  ${secHTML('papa','🥔','Líneas de Papa — PC6, PC4, DAF', mkResponsables('papa','Responsable(s) Líneas de Papa') + `
+  ${['daf','pc4','pc6'].map((linea, idx) => {
+    const num = idx + 6;
+    const label = linea.toUpperCase();
+    const p = (n,q,k,ph,tipo,ex) => pregHTML(n,q,`${linea}_${k}`,ph,tipo||'textarea',ex||'');
+    const ps = (n,q,k,ph) => pregSoloHTML(n,q,`${linea}_${k}`,ph);
+    return secHTML(linea,'🥔',`Papa — Línea ${label}`, mkResponsables(linea,`Responsable(s) Línea ${label}`) + `
     <div class="grid2" style="margin-bottom:12px">
       <div><div class="preg-label"><span class="pnum">1</span>Tipo de papa</div>
-        <select class="rinp" data-campo="papa_tipo" onchange="programarAutoGuardado()"><option>Cachirry</option><option>Pareja</option><option>R12</option><option>Mezcla</option></select></div>
+        <select class="rinp" data-campo="${linea}_tipo" onchange="programarAutoGuardado()"><option>Cachirry</option><option>Pareja</option><option>R12</option><option>Mezcla</option></select></div>
       <div><div class="preg-label"><span class="pnum">2</span>T° cuarto de papa</div>
-        <input class="rinp" type="text" data-campo="papa_temp" placeholder="°C" oninput="programarAutoGuardado()"></div>
+        <input class="rinp" type="text" data-campo="${linea}_temp" placeholder="°C" oninput="programarAutoGuardado()"></div>
     </div>
-    ${pregHTML(3,'¿Se realizaron mezclas de papa?','papa_mezcla','Tipos mezclados y proporciones...')}
-    ${pregHTML(4,'¿Se utilizó papa de guacal o de bulto? (activación del lavador)','papa_guacal','Especifique y confirme si el lavador fue activado...')}
-    ${pregHTML(5,'¿Se calibraron y limpiaron tambores? ¿Cuántos?','papa_tambores','Número de tambores calibrados...')}
-    ${pregHTML(6,'¿Se realizaron limpiezas de tanques?','papa_tanques','Describa las limpiezas realizadas...',
+    ${p(3,'¿Se realizaron mezclas de papa?','mezcla','Tipos mezclados y proporciones...')}
+    ${p(4,'¿Se utilizó papa de guacal o de bulto? (activación del lavador)','guacal','Especifique y confirme si el lavador fue activado...')}
+    ${p(5,'¿Se calibraron y limpiaron tambores? ¿Cuántos?','tambores','Número de tambores calibrados...')}
+    ${p(6,'¿Se realizaron limpiezas de tanques?','tanques','Describa las limpiezas realizadas...',
       'textarea', fotoHTML('Fotos de limpieza de tanques (obligatorio)','Evidencia fotográfica de cada tanque'))}
-    ${pregHTML(7,'¿Se limpiaron bombos para cambio de referencia?','papa_bombos','¿Qué bombos y para qué cambio?')}
-    ${pregHTML(8,'¿Se reprocesó papa de otro sabor?','papa_reproc','Especifique referencia y cantidad...')}
+    ${p(7,'¿Se limpiaron bombos para cambio de referencia?','bombos','¿Qué bombos y para qué cambio?')}
+    ${p(8,'¿Se reprocesó papa de otro sabor?','reproc','Especifique referencia y cantidad...')}
     <div class="pregunta"><div class="preg-label"><span class="pnum">9</span>Tipo de aceite y marca</div>
-      <div class="grid2"><select class="rinp" data-campo="papa_aceite" onchange="programarAutoGuardado()"><option>Nuevo</option><option>Reutilizado</option></select>
-      <select class="rinp" data-campo="papa_marca_aceite" onchange="programarAutoGuardado()"><option>Oleína</option><option>Aceite Blend</option></select></div></div>
-    ${pregHTML(10,'¿Se detectó papa cruda que requiriera reproceso?','papa_cruda','Cantidad y causa...')}
-    ${pregHTML(11,'¿Hubo producto no conforme?','papa_pnc','Detalle, causa y disposición...',
-      'textarea', fotoHTML('Fotos de PNC y exportaciones','Adjuntar evidencia fotográfica'))}
+      <div class="grid2">
+        <select class="rinp" data-campo="${linea}_aceite" onchange="programarAutoGuardado()"><option>Nuevo</option><option>Reutilizado</option></select>
+        <select class="rinp" data-campo="${linea}_marca_aceite" onchange="programarAutoGuardado()"><option>Oleína</option><option>Aceite Blend</option></select>
+      </div></div>
+    ${p(10,'¿Se detectó papa cruda que requiriera reproceso?','cruda','Cantidad y causa...')}
+    ${p(11,'¿Hubo producto no conforme?','pnc','Detalle, causa y disposición...',
+      'textarea', fotoHTML(`Fotos de PNC — Línea ${label}`,'Adjuntar evidencia fotográfica'))}
     <div class="sep"></div>
-    ${tablaHTML('t-papa',['Referencia','% Saborización','Observaciones'],3)}
-  `)}
+    ${tablaHTML(`t-${linea}`,['Referencia','% Saborización','Observaciones'],3)}
+  `);
+  }).join('')}
 
   ${secHTML('pellet','🔶','Pellet', mkResponsables('pellet','Responsable(s) Pellet') + `
     <div class="pregunta"><div class="preg-label"><span class="pnum">1</span>¿Se realizaron limpiezas? ¿De qué tipo?</div>
@@ -805,28 +888,18 @@ function renderFormPE() {
   <!-- CIERRE -->
   <div class="seccion">
     <div class="sec-header" onclick="toggleSec(this)">
-      <div class="sec-icon">✍️</div>
-      <div class="sec-titulo">Observaciones finales y firmas</div>
+      <div class="sec-icon">📝</div>
+      <div class="sec-titulo">Observaciones finales del turno</div>
       <span class="sec-chevron">▼</span>
     </div>
     <div class="sec-body">
-      <div class="pregunta"><div class="preg-label">Observaciones generales del turno</div>
-        <textarea class="rdet" style="min-height:80px" data-campo="obs_finales" placeholder="Comentarios finales del turno..." oninput="programarAutoGuardado()"></textarea></div>
-      <div class="firma-row">
-        <div class="firma-box"><div class="firma-lbl">Responsable de Calidad</div>
-          <canvas class="fcanvas" id="canvas-cal" width="240" height="56"></canvas>
-          <button class="btn-limpiar" onclick="limpiarFirma('canvas-cal')">✕ Limpiar</button>
-          <div style="font-size:11px;color:var(--txt-s);margin-top:4px" id="nom-cal">—</div></div>
-        <div class="firma-box"><div class="firma-lbl">Responsable de Procesos</div>
-          <canvas class="fcanvas" id="canvas-proc" width="240" height="56"></canvas>
-          <button class="btn-limpiar" onclick="limpiarFirma('canvas-proc')">✕ Limpiar</button>
-          <div style="font-size:11px;color:var(--txt-s);margin-top:4px" id="nom-proc">—</div></div>
-      </div>
+      <div class="pregunta"><div class="preg-label">Observaciones generales</div>
+        <textarea class="rdet" style="min-height:100px" data-campo="obs_finales" placeholder="Comentarios finales, situaciones relevantes no cubiertas en las secciones anteriores..." oninput="programarAutoGuardado()"></textarea></div>
     </div>
   </div>`;
 
   document.getElementById('g-fecha').valueAsDate = new Date();
-  setTimeout(() => { setupCanvas('canvas-cal'); setupCanvas('canvas-proc'); renderTabsEstado(); }, 100);
+  setTimeout(() => { renderTabsEstado(); }, 100);
 }
 
 /* ══════ RENDER: MATERIA PRIMA ══════ */
@@ -851,24 +924,15 @@ function renderFormMP() {
 
   <div class="seccion">
     <div class="sec-header" onclick="toggleSec(this)">
-      <div class="sec-icon">✍️</div><div class="sec-titulo">Observaciones y firma</div>
+      <div class="sec-icon">📝</div><div class="sec-titulo">Observaciones generales</div>
       <span class="sec-chevron">▼</span>
     </div>
     <div class="sec-body">
-      <textarea class="rdet" style="min-height:70px" data-campo="mp_obs" placeholder="Observaciones generales..." oninput="programarAutoGuardado()"></textarea>
-      <div class="firma-row" style="margin-top:14px">
-        <div class="firma-box"><div class="firma-lbl">Responsable de Materia Prima</div>
-          <canvas class="fcanvas" id="canvas-mp" width="240" height="56"></canvas>
-          <button class="btn-limpiar" onclick="limpiarFirma('canvas-mp')">✕ Limpiar</button></div>
-        <div class="firma-box"><div class="firma-lbl">Jefe de turno / Supervisor</div>
-          <canvas class="fcanvas" id="canvas-jefe" width="240" height="56"></canvas>
-          <button class="btn-limpiar" onclick="limpiarFirma('canvas-jefe')">✕ Limpiar</button></div>
-      </div>
+      <textarea class="rdet" style="min-height:100px" data-campo="mp_obs" placeholder="Comentarios y observaciones generales del día..." oninput="programarAutoGuardado()"></textarea>
     </div>
   </div>`;
 
   document.getElementById('g-fecha').valueAsDate = new Date();
-  setTimeout(() => { setupCanvas('canvas-mp'); setupCanvas('canvas-jefe'); }, 100);
 }
 
 /* ══════ GENERACIÓN PDF ══════ */
@@ -1154,26 +1218,29 @@ async function generarPDF() {
     const fgTroc=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-trocillo'));
     await fotos(fgTroc);
 
-    // ── PAPA ──
-    nuevaPag(); titulo('6. Líneas de Papa — PC6, PC4, DAF'); resp('Responsable(s)', 'papa');
-    campo('Tipo de papa', getVal('papa_tipo'));
-    campo('T° cuarto de papa', getVal('papa_temp')+' °C');
-    campo('Tipo de aceite', getVal('papa_aceite')+' / '+getVal('papa_marca_aceite'));
-    campoBloque('Mezclas de papa', getVal('papa_mezcla_det'), getSiNo('papa_mezcla'));
-    campoBloque('Papa de guacal / lavador', getVal('papa_guacal_det'), getSiNo('papa_guacal'));
-    campoBloque('Calibración de tambores', getVal('papa_tambores_det'), getSiNo('papa_tambores'));
-    campoBloque('Limpiezas de tanques', getVal('papa_tanques_det'), getSiNo('papa_tanques'));
-    const fgPapa=[...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-papa'));
-    await fotos(fgPapa);
-    campoBloque('Limpiezas de bombos', getVal('papa_bombos_det'), getSiNo('papa_bombos'));
-    campoBloque('Reproceso de papa de otro sabor', getVal('papa_reproc_det'), getSiNo('papa_reproc'));
-    campoBloque('Papa cruda detectada', getVal('papa_cruda_det'), getSiNo('papa_cruda'));
-    campoBloque('Producto no conforme (PNC)', getVal('papa_pnc_det'), getSiNo('papa_pnc'));
-    titulo('Registro referencias papa', 2);
-    tabla(['Referencia','% Saborización','Observaciones'], getTablaRows('t-papa'));
+    // ── PAPA DAF / PC4 / PC6 ──
+    for(const [idx, linea] of [['6','daf'],['7','pc4'],['8','pc6']]) {
+      const label = linea.toUpperCase();
+      nuevaPag(); titulo(`${idx}. Papa — Línea ${label}`); resp('Responsable(s)', linea);
+      campo('Tipo de papa', getVal(`${linea}_tipo`));
+      campo('T° cuarto de papa', getVal(`${linea}_temp`)+' °C');
+      campo('Tipo de aceite', getVal(`${linea}_aceite`)+' / '+getVal(`${linea}_marca_aceite`));
+      campoBloque('Mezclas de papa', getVal(`${linea}_mezcla_det`), getSiNo(`${linea}_mezcla`));
+      campoBloque('Papa de guacal / lavador', getVal(`${linea}_guacal_det`), getSiNo(`${linea}_guacal`));
+      campoBloque('Calibración de tambores', getVal(`${linea}_tambores_det`), getSiNo(`${linea}_tambores`));
+      campoBloque('Limpiezas de tanques', getVal(`${linea}_tanques_det`), getSiNo(`${linea}_tanques`));
+      const fgL=[...document.querySelectorAll('.fgrid')].find(g=>g.closest(`#sec-${linea}`));
+      await fotos(fgL);
+      campoBloque('Limpiezas de bombos', getVal(`${linea}_bombos_det`), getSiNo(`${linea}_bombos`));
+      campoBloque('Reproceso de papa de otro sabor', getVal(`${linea}_reproc_det`), getSiNo(`${linea}_reproc`));
+      campoBloque('Papa cruda detectada', getVal(`${linea}_cruda_det`), getSiNo(`${linea}_cruda`));
+      campoBloque('Producto no conforme (PNC)', getVal(`${linea}_pnc_det`), getSiNo(`${linea}_pnc`));
+      titulo(`Registro referencias — Línea ${label}`, 2);
+      tabla(['Referencia','% Saborización','Observaciones'], getTablaRows(`t-${linea}`));
+    }
 
     // ── PELLET ──
-    nuevaPag(); titulo('7. Pellet'); resp('Responsable(s)', 'pellet');
+    nuevaPag(); titulo('9. Pellet'); resp('Responsable(s)', 'pellet');
     campo('Tipo de aceite', getVal('pell_aceite'));
     campo('TPM', getVal('pell_tpm'));
     campo('Tipo de limpieza', getVal('pell_limp_tipo'));
@@ -1205,35 +1272,8 @@ async function generarPDF() {
   }
 
   // ── CIERRE ──
-  nuevaPag(); titulo('Observaciones Finales y Firmas');
+  nuevaPag(); titulo('Observaciones Finales');
   campo('Observaciones del turno', getVal('obs_finales'));
-  y+=6; check(50);
-  doc.setFillColor(...GRIS); doc.rect(ML,y,CW/2-5,40,'F');
-  doc.setDrawColor(...GRIS_M); doc.rect(ML,y,CW/2-5,40,'S');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...AZUL_M);
-  doc.text('Responsable de Calidad', ML+5, y+8);
-  const cCal=document.getElementById('canvas-cal')||document.getElementById('canvas-mp');
-  if(cCal && cCal.toDataURL()!==blankCanvas()) {
-    try{ doc.addImage(cCal.toDataURL(),'PNG',ML+5,y+12,CW/2-20,20,'','FAST'); }catch(e){}
-  } else {
-    doc.setDrawColor(150,150,150); doc.line(ML+5,y+28,ML+CW/2-10,y+28);
-  }
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...SUAVE);
-  doc.text('Firma', ML+CW/4-10, y+38);
-
-  const x2=ML+CW/2+5;
-  doc.setFillColor(...GRIS); doc.rect(x2,y,CW/2-5,40,'F');
-  doc.setDrawColor(...GRIS_M); doc.rect(x2,y,CW/2-5,40,'S');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...AZUL_M);
-  doc.text('Responsable de Procesos / Turno', x2+5, y+8);
-  const cProc=document.getElementById('canvas-proc')||document.getElementById('canvas-jefe');
-  if(cProc && cProc.toDataURL()!==blankCanvas()) {
-    try{ doc.addImage(cProc.toDataURL(),'PNG',x2+5,y+12,CW/2-20,20,'','FAST'); }catch(e){}
-  } else {
-    doc.setDrawColor(150,150,150); doc.line(x2+5,y+28,x2+CW/2-10,y+28);
-  }
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...SUAVE);
-  doc.text('Firma', x2+CW/4-10, y+38);
   pie();
 
   const fname=`InformeVicky_${tipoActual==='pe'?'ProcesosEmpaque':'MateriaPrima'}_${fecha||'sinFecha'}_T${turno||'0'}.pdf`;
@@ -1241,13 +1281,15 @@ async function generarPDF() {
   toast('✓ PDF generado exitosamente', 'verde');
 }
 
-function blankCanvas() {
-  const c=document.createElement('canvas');c.width=10;c.height=10;return c.toDataURL();
-}
 
 /* ── INIT ── */
 document.getElementById('g-fecha') && (document.getElementById('g-fecha').valueAsDate = new Date());
-renderBorradores();
+// Wait for Firebase before listing borradores
+if(window._fbReady) {
+  renderBorradores();
+} else {
+  document.addEventListener('fbReady', () => renderBorradores(), { once: true });
+}
 </script>
 </body>
 </html>
