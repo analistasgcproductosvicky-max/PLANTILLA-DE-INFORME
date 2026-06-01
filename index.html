@@ -7,7 +7,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, collection, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc,
+           collection, orderBy, query, onSnapshot, updateDoc, serverTimestamp
+         } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCOhRsKLqVg3Oiys7YBmjuUXvl0h6uNBuc",
@@ -19,55 +21,110 @@
   };
 
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const db  = getFirestore(app);
 
-  // Expose DB functions globally for use in main script
+  // ── helpers serialización ──
+  function serial(datos) {
+    const f = { ...datos, ts: Date.now() };
+    if(f.fotos)  f.fotos  = JSON.stringify(f.fotos);
+    if(f.tablas) f.tablas = JSON.stringify(f.tablas);
+    if(f.resp)   f.resp   = JSON.stringify(f.resp);
+    return f;
+  }
+  function deserial(d) {
+    if(typeof d.fotos  === 'string') try { d.fotos  = JSON.parse(d.fotos);  } catch(e){}
+    if(typeof d.tablas === 'string') try { d.tablas = JSON.parse(d.tablas); } catch(e){}
+    if(typeof d.resp   === 'string') try { d.resp   = JSON.parse(d.resp);   } catch(e){}
+    return d;
+  }
+
+  let _unsubPresencia = null;
+  let _unsubEstados   = null;
+
   window._fb = {
+    // ── CRUD borradores ──
     async guardar(id, datos) {
       try {
-        // Firestore no acepta arrays anidados — serializar fotos, tablas y resp como strings
-        const flat = { ...datos, ts: Date.now() };
-        if(flat.fotos) flat.fotos = JSON.stringify(flat.fotos);
-        if(flat.tablas) flat.tablas = JSON.stringify(flat.tablas);
-        if(flat.resp) flat.resp = JSON.stringify(flat.resp);
-        await setDoc(doc(db, 'borradores', id), flat);
+        await setDoc(doc(db, 'borradores', id), serial(datos));
         return true;
       } catch(e) { console.error('Firebase guardar:', e); return false; }
     },
     async cargar(id) {
       try {
         const snap = await getDoc(doc(db, 'borradores', id));
-        if(!snap.exists()) return null;
-        const d = snap.data();
-        // Deserializar
-        if(typeof d.fotos === 'string') try { d.fotos = JSON.parse(d.fotos); } catch(e){}
-        if(typeof d.tablas === 'string') try { d.tablas = JSON.parse(d.tablas); } catch(e){}
-        if(typeof d.resp === 'string') try { d.resp = JSON.parse(d.resp); } catch(e){}
-        return d;
+        return snap.exists() ? deserial(snap.data()) : null;
       } catch(e) { console.error('Firebase cargar:', e); return null; }
     },
     async listar() {
       try {
-        const q = query(collection(db, 'borradores'), orderBy('ts','desc'));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      } catch(e) { 
-        // orderBy may fail without index, fallback
-        try {
-          const snap2 = await getDocs(collection(db, 'borradores'));
-          return snap2.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(b.ts||0)-(a.ts||0));
-        } catch(e2) { console.error('Firebase listar:', e2); return []; }
-      }
+        const snap = await getDocs(collection(db, 'borradores'));
+        return snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a,b) => (b.ts||0) - (a.ts||0));
+      } catch(e) { console.error('Firebase listar:', e); return []; }
     },
     async eliminar(id) {
+      try { await deleteDoc(doc(db, 'borradores', id)); return true; }
+      catch(e) { console.error('Firebase eliminar:', e); return false; }
+    },
+
+    // ── ESTADOS en tiempo real ──
+    // Guarda el estado (vacio/parcial/completo) de cada sección + quién la tiene abierta
+    async publicarEstado(borradorId, seccion, estado, usuario) {
       try {
-        await deleteDoc(doc(db, 'borradores', id));
-        return true;
-      } catch(e) { console.error('Firebase eliminar:', e); return false; }
+        await setDoc(
+          doc(db, 'borradores', borradorId, 'estados', seccion),
+          { estado, usuario, ts: Date.now() },
+          { merge: true }
+        );
+      } catch(e) { /* silencioso */ }
+    },
+
+    // Escucha cambios en estados de todas las secciones en tiempo real
+    escucharEstados(borradorId, callback) {
+      if(_unsubEstados) _unsubEstados();
+      _unsubEstados = onSnapshot(
+        collection(db, 'borradores', borradorId, 'estados'),
+        snap => {
+          const estados = {};
+          snap.forEach(d => { estados[d.id] = d.data(); });
+          callback(estados);
+        },
+        e => console.error('escucharEstados:', e)
+      );
+    },
+
+    // ── PRESENCIA: quién tiene abierta cada sección ──
+    async marcarPresencia(borradorId, seccion, usuario) {
+      try {
+        await setDoc(
+          doc(db, 'borradores', borradorId, 'presencia', seccion),
+          { usuario, ts: Date.now() }
+        );
+      } catch(e) {}
+    },
+    async limpiarPresencia(borradorId, seccion) {
+      try { await deleteDoc(doc(db, 'borradores', borradorId, 'presencia', seccion)); }
+      catch(e) {}
+    },
+    escucharPresencia(borradorId, callback) {
+      if(_unsubPresencia) _unsubPresencia();
+      _unsubPresencia = onSnapshot(
+        collection(db, 'borradores', borradorId, 'presencia'),
+        snap => {
+          const presencia = {};
+          snap.forEach(d => { presencia[d.id] = d.data(); });
+          callback(presencia);
+        },
+        e => console.error('escucharPresencia:', e)
+      );
+    },
+    detenerEscuchas() {
+      if(_unsubPresencia) { _unsubPresencia(); _unsubPresencia = null; }
+      if(_unsubEstados)   { _unsubEstados();   _unsubEstados   = null; }
     }
   };
 
-  // Signal that Firebase is ready
   window._fbReady = true;
   document.dispatchEvent(new Event('fbReady'));
 </script>
@@ -241,6 +298,18 @@ canvas.fcanvas{border-bottom:1.5px solid var(--txt);width:100%;height:56px;displ
 .toast.rojo{background:var(--rojo)}
 
 /* ── IMPRESIÓN ── */
+/* ── PRESENCIA / BLOQUEO ── */
+.tab-presencia{font-size:10px;padding:1px 7px;border-radius:20px;margin-left:4px;display:none;font-weight:500}
+.tab-presencia.visible{display:inline}
+.badge-editando{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--azul-m);background:var(--azul-cl);border:1px solid var(--azul-borde);border-radius:20px;padding:3px 12px;margin-bottom:10px;width:fit-content}
+.dot-vivo{width:7px;height:7px;border-radius:50%;background:#27ae60;animation:pulso .9s infinite;flex-shrink:0}
+@keyframes pulso{0%,100%{opacity:1}50%{opacity:.3}}
+.sec-bloqueada .sec-body{pointer-events:none;opacity:.7}
+.bloqueo-banner{background:var(--naranja-cl);border:1px solid var(--naranja);border-radius:var(--r);padding:8px 14px;font-size:12px;color:var(--naranja);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.usuario-wrap{display:flex;align-items:center;gap:8px;margin-left:auto}
+.usuario-label{font-size:11px;opacity:.6;color:white;white-space:nowrap}
+.usuario-inp{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:white;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:500;padding:5px 10px;width:170px}
+.usuario-inp::placeholder{color:rgba(255,255,255,.4)}
 @media print{body,html{display:none}}
 </style>
 </head>
@@ -285,9 +354,13 @@ canvas.fcanvas{border-bottom:1.5px solid var(--txt);width:100%;height:56px;displ
         </div>
         <span class="autosave" id="autosave-lbl">💾 Guardado</span>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="hbtn hbtn-outline" onclick="guardarBorrador()">💾 Guardar borrador</button>
-        <button class="hbtn hbtn-verde" onclick="generarPDF()" id="btn-pdf">📄 Generar PDF</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="usuario-wrap">
+          <span class="usuario-label">Soy:</span>
+          <input class="usuario-inp" id="usuario-inp" placeholder="Tu nombre" oninput="onUsuarioChange(this.value)">
+        </div>
+        <button class="hbtn hbtn-outline" onclick="guardarBorrador()">💾 Guardar</button>
+        <button class="hbtn hbtn-verde" onclick="generarPDF()" id="btn-pdf">📄 PDF</button>
       </div>
     </div>
   </header>
@@ -332,12 +405,15 @@ function abrirFormulario(tipo) {
   borradorId = tipo + '_' + Date.now();
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
+  // Restaurar nombre de usuario guardado
+  const uInp = document.getElementById('usuario-inp');
+  if(uInp) { uInp.value = miUsuario; }
   if(tipo === 'pe') {
     document.getElementById('h-titulo').textContent = 'Procesos y Empaque';
     document.getElementById('h-sub').textContent = 'Informe por turno';
     document.getElementById('tabs-wrap').style.display = 'block';
-    renderTabsEstado();
     renderFormPE();
+    renderTabsEstado();
   } else {
     document.getElementById('h-titulo').textContent = 'Materia Prima';
     document.getElementById('h-sub').textContent = 'Informe diario';
@@ -349,6 +425,12 @@ function abrirFormulario(tipo) {
 
 function volverMenu() {
   guardarAutoLocal();
+  // Limpiar presencia al salir
+  if(window._fb && borradorId && seccionAbierta) {
+    window._fb.limpiarPresencia(borradorId, seccionAbierta);
+  }
+  if(window._fb) window._fb.detenerEscuchas();
+  seccionAbierta = '';
   document.getElementById('pantalla-form').style.display = 'none';
   document.getElementById('pantalla-menu').style.display = 'flex';
   renderBorradores();
@@ -415,6 +497,10 @@ async function cargarBorrador(key) {
   setTimeout(() => restaurarDatos(d), 300);
   window.scrollTo(0,0);
   toast('✓ Borrador cargado','verde');
+  // Iniciar presencia y escucha en tiempo real
+  const uInp = document.getElementById('usuario-inp');
+  if(uInp) uInp.value = miUsuario;
+  if(d.tipo==='pe') setTimeout(() => iniciarRealtimePresencia(), 500);
 }
 
 async function eliminarBorrador(key, e) {
@@ -425,25 +511,93 @@ async function eliminarBorrador(key, e) {
   toast('Borrador eliminado','');
 }
 
+/* ══════ USUARIO ══════ */
+let miUsuario = localStorage.getItem('vicky_usuario') || '';
+function onUsuarioChange(val) {
+  miUsuario = val.trim();
+  localStorage.setItem('vicky_usuario', miUsuario);
+}
+
+/* ══════ PRESENCIA REMOTA ══════ */
+let presenciaRemota = {};  // { seccion: { usuario, ts } }
+let estadosRemotos  = {};  // { seccion: { estado, usuario } }
+let seccionAbierta  = '';
+
+function iniciarRealtimePresencia() {
+  if(!window._fb || !borradorId) return;
+  // Escuchar estados de todas las secciones
+  window._fb.escucharEstados(borradorId, (estados) => {
+    estadosRemotos = estados;
+    actualizarTodosLosTabs();
+  });
+  // Escuchar presencia (quién tiene abierta cada sección)
+  window._fb.escucharPresencia(borradorId, (presencia) => {
+    presenciaRemota = presencia;
+    actualizarTodosLosTabs();
+    actualizarBannerPresencia();
+  });
+}
+
+function marcarSeccionAbierta(sec) {
+  if(!window._fb || !borradorId || !miUsuario) return;
+  // Limpiar anterior
+  if(seccionAbierta && seccionAbierta !== sec) {
+    window._fb.limpiarPresencia(borradorId, seccionAbierta);
+  }
+  seccionAbierta = sec;
+  if(sec) window._fb.marcarPresencia(borradorId, sec, miUsuario);
+}
+
+function actualizarBannerPresencia() {
+  SECCIONES_PE.forEach(sec => {
+    const secEl = document.getElementById('sec-'+sec);
+    if(!secEl) return;
+    const body = secEl.querySelector('.sec-body');
+    if(!body) return;
+    // Quitar banner anterior
+    const oldBanner = body.querySelector('.badge-editando');
+    if(oldBanner) oldBanner.remove();
+    // Ver si otro usuario tiene esta sección abierta
+    const p = presenciaRemota[sec];
+    if(p && p.usuario && p.usuario !== miUsuario && Date.now() - (p.ts||0) < 120000) {
+      const banner = document.createElement('div');
+      banner.className = 'badge-editando';
+      banner.innerHTML = `<span class="dot-vivo"></span> ${p.usuario} está editando esta sección ahora`;
+      body.insertBefore(banner, body.firstChild);
+    }
+  });
+}
+
 /* ══════ TABS ESTADO ══════ */
 function renderTabsEstado() {
   const tabs = document.getElementById('tabs-estado');
   tabs.innerHTML = SECCIONES_PE.map((s,i) => {
     const estado = calcEstado(s);
     return `<div class="tab-estado${i===0?' activo':''}" id="tab-${s}" onclick="scrollToSec('${s}')">
-      <span class="estado-dot dot-${estado}"></span>${SECCIONES_LABELS[s]}
+      <span class="estado-dot dot-${estado}"></span>${SECCIONES_LABELS[s]}<span class="tab-presencia" id="tp-${s}"></span>
     </div>`;
   }).join('');
+  if(borradorId) iniciarRealtimePresencia();
+}
+
+function actualizarTodosLosTabs() {
+  SECCIONES_PE.forEach(sec => actualizarTabEstado(sec));
 }
 
 function calcEstado(sec) {
-  const sinos = document.querySelectorAll(`#sec-${sec} .rbtn.si, #sec-${sec} .rbtn.no`);
+  // Primero mirar si hay estado remoto de otro usuario
+  const rem = estadosRemotos[sec];
+  const local_sinos = document.querySelectorAll(`#sec-${sec} .rbtn.si, #sec-${sec} .rbtn.no`);
   const total = document.querySelectorAll(`#sec-${sec} .sino-row`).length;
-  if(!total) return 'vacio';
-  const filled = sinos.length;
-  if(filled === 0) return 'vacio';
-  if(filled >= total) return 'completo';
-  return 'parcial';
+  if(local_sinos.length > 0) {
+    // Tenemos datos locales — usar locales
+    if(!total) return 'vacio';
+    if(local_sinos.length >= total) return 'completo';
+    return 'parcial';
+  }
+  // Sin datos locales — usar remoto si existe
+  if(rem) return rem.estado;
+  return 'vacio';
 }
 
 function actualizarTabEstado(sec) {
@@ -451,6 +605,26 @@ function actualizarTabEstado(sec) {
   if(!tab) return;
   const estado = calcEstado(sec);
   tab.querySelector('.estado-dot').className = 'estado-dot dot-'+estado;
+  // Presencia en tab
+  const tp = document.getElementById('tp-'+sec);
+  if(tp) {
+    const p = presenciaRemota[sec];
+    if(p && p.usuario && p.usuario !== miUsuario && Date.now() - (p.ts||0) < 120000) {
+      const inicial = p.usuario.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      tp.textContent = inicial;
+      tp.title = p.usuario + ' editando';
+      tp.style.background = 'rgba(255,165,0,.35)';
+      tp.style.color = '#fff';
+      tp.classList.add('visible');
+    } else {
+      tp.classList.remove('visible');
+    }
+  }
+  // Publicar estado local a Firestore
+  if(window._fb && borradorId && miUsuario) {
+    const sinos = document.querySelectorAll(`#sec-${sec} .rbtn.si, #sec-${sec} .rbtn.no`);
+    if(sinos.length > 0) window._fb.publicarEstado(borradorId, sec, estado, miUsuario);
+  }
 }
 
 function scrollToSec(sec) {
@@ -462,6 +636,7 @@ function scrollToSec(sec) {
     const body = el.querySelector('.sec-body');
     if(body && !body.classList.contains('ab')) toggleSec(el.querySelector('.sec-header'));
     el.scrollIntoView({behavior:'smooth', block:'start'});
+    marcarSeccionAbierta(sec);
   }
 }
 
@@ -471,6 +646,14 @@ function toggleSec(header) {
   const ch = header.querySelector('.sec-chevron');
   const ab = body.classList.toggle('ab');
   ch.classList.toggle('ab', ab);
+  // Marcar presencia al abrir una sección
+  if(ab) {
+    const secEl = header.closest('.seccion');
+    if(secEl && secEl.id) {
+      const sec = secEl.id.replace('sec-','');
+      marcarSeccionAbierta(sec);
+    }
+  }
 }
 
 function siNo(btn, val) {
