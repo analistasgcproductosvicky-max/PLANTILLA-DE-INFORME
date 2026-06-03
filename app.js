@@ -641,26 +641,32 @@ function renderEmpaque() {
          ${foto('Foto del sticker','Adjuntar foto del sticker de la referencia liberada')}`
       )}
 
-      <div class="pregunta">
+      <div class="pregunta" id="preg-rx">
         <div class="preg-label"><span class="pnum">10</span>Rayos X — Estado y productos inspeccionados</div>
-        <div class="grid2" style="margin-bottom:10px">
+        <div class="grid2" style="margin-bottom:6px">
           <div>
-            <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿RX1 se encuentra operando?</div>
+            <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:4px">¿RX1 se encuentra operando?</div>
             <div class="sino-row" data-key="emp_rx1_op">
               <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
               <button class="rbtn" onclick="siNo(this,'no')">No</button>
             </div>
+            <div class="cond-no" style="display:none;margin-top:6px">
+              <textarea class="rdet" data-campo="emp_rx1_motivo" placeholder="¿Por qué no está operando RX1?" oninput="autoSave()" style="min-height:50px"></textarea>
+            </div>
           </div>
           <div>
-            <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿RX2 se encuentra operando?</div>
+            <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:4px">¿RX2 se encuentra operando?</div>
             <div class="sino-row" data-key="emp_rx2_op">
               <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
               <button class="rbtn" onclick="siNo(this,'no')">No</button>
             </div>
+            <div class="cond-no" style="display:none;margin-top:6px">
+              <textarea class="rdet" data-campo="emp_rx2_motivo" placeholder="¿Por qué no está operando RX2?" oninput="autoSave()" style="min-height:50px"></textarea>
+            </div>
           </div>
         </div>
-        <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:6px">Productos inspeccionados por RX1 y RX2</div>
-        ${tbl('t-emp-rx',['Equipo (RX1/RX2)','Referencia','Lote'])}
+        <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:6px">Productos inspeccionados</div>
+        ${tblSel('t-emp-rx',['Equipo','Referencia','Lote'],0,['RX1','RX2'])}
       </div>
 
       ${preg(11,'¿Hubo máquinas con desviaciones de peso durante el turno?','emp_peso',
@@ -671,7 +677,12 @@ function renderEmpaque() {
         <div class="preg-label"><span class="pnum">12</span>Otras novedades del turno</div>
         <textarea class="rdet" data-campo="emp_otras" style="min-height:80px" placeholder="Describa cualquier otra novedad relevante del turno..." oninput="autoSave()"></textarea>
         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de otras novedades</div>
-        ${foto('Adjuntar fotos si aplica','Fotos de novedades adicionales')}
+        <div class="fzona" onclick="this.querySelector('input').click()">
+          <input type="file" accept="image/*" multiple onchange="agregarFotos(this)">
+          <div>📷 Adjuntar fotos si aplica</div>
+          <div class="fzona-txt">Fotos de novedades adicionales</div>
+        </div>
+        <div class="fgrid" data-fid="emp_otras_fotos"></div>
       </div>
     </div>
   </div>`;
@@ -1017,21 +1028,23 @@ async function generarPDF() {
     for(const img of imgs) {
       const nw = img.naturalWidth||800, nh = img.naturalHeight||600;
       const ratio = nw/nh;
-      let fh = fw/ratio;
-      if(fh > 85) { fh = 85; }
+      // Maintain original aspect ratio: fit within fw x 85mm
+      let imgW = fw, imgH = fw/ratio;
+      if(imgH > 85) { imgH = 85; imgW = imgH * ratio; }
+      if(imgW > fw) { imgW = fw; imgH = imgW / ratio; }
       const capH = img.nextElementSibling?.value ? 8 : 0;
-      const totalH = fh + capH;
+      const totalH = imgH + capH;
       if(col === 0) { check(totalH+4); rowY = y; rowH = totalH; }
       rowH = Math.max(rowH, totalH);
       const x = ML + col*(fw+gap);
       try {
         const fmt = img.src.startsWith('data:image/png')?'PNG':'JPEG';
-        doc.addImage(img.src,fmt,x,rowY,fw,fh,'','MEDIUM');
-        doc.setDrawColor(...C.grisM); doc.rect(x,rowY,fw,fh,'S');
+        doc.addImage(img.src,fmt,x,rowY,imgW,imgH,'','MEDIUM');
+        doc.setDrawColor(...C.grisM); doc.rect(x,rowY,imgW,imgH,'S');
         const cap = img.nextElementSibling?.value||'';
         if(cap) {
           doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...C.suave);
-          doc.text(cap, x+fw/2, rowY+fh+4, {align:'center', maxWidth:fw});
+          doc.text(cap, x+imgW/2, rowY+imgH+4, {align:'center', maxWidth:imgW});
         }
       } catch(e){}
       col++;
@@ -1125,11 +1138,12 @@ async function generarPDF() {
       await fotos(gfgrid('empaque','emp_sticker'));
     } else campo('Liberación sticker','',gsino('emp_sticker'));
     titulo('Rayos X — RX1 y RX2',2);
-    campo('RX1 operando', '', gsino('emp_rx1_op'));
-    campo('RX2 operando', '', gsino('emp_rx2_op'));
+    campo('RX1 operando', gsino('emp_rx1_op')==='no'?gv('emp_rx1_motivo'):'', gsino('emp_rx1_op'));
+    campo('RX2 operando', gsino('emp_rx2_op')==='no'?gv('emp_rx2_motivo'):'', gsino('emp_rx2_op'));
     tabla(['Equipo','Referencia','Lote'],gtbl('t-emp-rx'));
     titulo('Desviaciones de peso',2); if(gsino('emp_peso')==='si') tabla(['Máquina','Referencia','Desviación','Acción'],gtbl('t-emp-peso')); else campo('Desviaciones de peso','',gsino('emp_peso'));
-    const otras = gv('emp_otras'); if(otras){ titulo('Otras novedades',2); campo('Novedades',otras); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('.pregunta [data-campo="emp_otras"]')?.closest('.pregunta')===g.closest('.pregunta'))); }
+    const otras = gv('emp_otras'); if(otras){ titulo('Otras novedades',2); campo('Novedades',otras); }
+    await fotos(document.querySelector('.fgrid[data-fid="emp_otras_fotos"]'));
 
   } else if(tipoActual==='pe') {
     const secs = {
