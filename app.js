@@ -86,6 +86,54 @@ function tblSel(id, headers, selCol, opts = ['Sí','No'], rows = 2) {
   <button class="btn-add" onclick="addRowSel('${id}',${JSON.stringify(headers.map((_,i)=>i===selCol?'sel':'txt'))})">+ Agregar fila</button>`;
 }
 
+function tblTolvas(id, rows = 2) {
+  // Special table: fecha de produccion auto-calculates dias almacenados
+  const ths = ['Producto / Referencia','Tolva','Fecha de producción','Días almacenados'].map(h=>`<th>${h}</th>`).join('');
+  const rowHtml = Array.from({length: rows}, (_, ri) => `<tr>
+    <td><input type="text" oninput="autoSave()"></td>
+    <td><input type="text" oninput="autoSave()"></td>
+    <td><input type="date" oninput="calcDiasTolva(this)" style="width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;padding:4px"></td>
+    <td><input type="text" readonly style="width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;padding:4px;color:var(--rojo);font-weight:600"></td>
+  </tr>`).join('');
+  return `<div class="twrap"><table class="reg" id="${id}">
+    <thead><tr>${ths}</tr></thead><tbody>${rowHtml}</tbody>
+  </table></div>
+  <button class="btn-add" onclick="addRowTolvas('${id}')">+ Agregar fila</button>`;
+}
+
+function calcDiasTolva(fechaInp) {
+  const tr = fechaInp.closest('tr');
+  const diasInp = tr.querySelectorAll('input')[3];
+  if(!diasInp) return;
+  if(!fechaInp.value) { diasInp.value = ''; return; }
+  const prod = new Date(fechaInp.value + 'T12:00:00');
+  const hoy  = new Date();
+  hoy.setHours(12,0,0,0);
+  const dias = Math.round((hoy - prod) / (1000*60*60*24));
+  diasInp.value = dias >= 0 ? dias + (dias === 1 ? ' día' : ' días') : '—';
+  diasInp.style.color = dias >= 2 ? 'var(--rojo)' : 'var(--verde)';
+  autoSave();
+}
+
+function addRowTolvas(id) {
+  const tb = document.getElementById(id)?.querySelector('tbody');
+  if(!tb) return;
+  const tr = document.createElement('tr');
+  // col 0: texto
+  const td0=document.createElement('td'); const i0=document.createElement('input'); i0.type='text'; i0.addEventListener('input',autoSave); td0.appendChild(i0); tr.appendChild(td0);
+  // col 1: texto
+  const td1=document.createElement('td'); const i1=document.createElement('input'); i1.type='text'; i1.addEventListener('input',autoSave); td1.appendChild(i1); tr.appendChild(td1);
+  // col 2: date
+  const td2=document.createElement('td'); const i2=document.createElement('input'); i2.type='date';
+  Object.assign(i2.style,{width:'100%',border:'none',background:'transparent',fontFamily:"'DM Sans',sans-serif",fontSize:'12px',padding:'4px'});
+  i2.addEventListener('input',()=>calcDiasTolva(i2)); td2.appendChild(i2); tr.appendChild(td2);
+  // col 3: readonly días
+  const td3=document.createElement('td'); const i3=document.createElement('input'); i3.type='text'; i3.readOnly=true;
+  Object.assign(i3.style,{width:'100%',border:'none',background:'transparent',fontFamily:"'DM Sans',sans-serif",fontSize:'12px',padding:'4px',fontWeight:'600'});
+  td3.appendChild(i3); tr.appendChild(td3);
+  tb.appendChild(tr);
+}
+
 function foto(labelBtn, sub) {
   return `<div class="fzona" onclick="this.querySelector('input').click()">
     <input type="file" accept="image/*" multiple onchange="agregarFotos(this)">
@@ -131,15 +179,28 @@ function siNo(btn, val) {
   const row  = btn.closest('.sino-row');
   row.querySelectorAll('.rbtn').forEach(b => b.classList.remove('si','no'));
   btn.classList.add(val);
-  const preg = row.closest('.pregunta');
-  if(preg) {
-    const cs = preg.querySelector('.cond-si');
-    const cn = preg.querySelector('.cond-no');
-    if(cs) cs.style.display = val === 'si' ? 'block' : 'none';
-    if(cn) cn.style.display = val === 'no' ? 'block' : 'none';
-    const det = preg.querySelector(':scope > textarea.rdet, :scope > input.rinp');
-    if(det) { det.disabled = val === 'no'; if(val === 'no') det.value = ''; }
+  // Look in immediate parent first (handles RX per-unit cond-no),
+  // then fall back to closest .pregunta for standard questions
+  const container = row.parentElement;
+  const cs = container.querySelector('.cond-si') || row.closest('.pregunta')?.querySelector('.cond-si');
+  const cn = container.querySelector('.cond-no') || row.closest('.pregunta')?.querySelector('.cond-no');
+  // Only toggle the cond inside the same container as sino-row (not across pregunta)
+  const containerCs = container.querySelector('.cond-si');
+  const containerCn = container.querySelector('.cond-no');
+  if(containerCs) containerCs.style.display = val === 'si' ? 'block' : 'none';
+  if(containerCn) containerCn.style.display = val === 'no' ? 'block' : 'none';
+  // Fallback: if cond is direct child of pregunta (not in sub-container)
+  if(!containerCs && !containerCn) {
+    const preg = row.closest('.pregunta');
+    if(preg) {
+      const pcs = preg.querySelector(':scope > .cond-si');
+      const pcn = preg.querySelector(':scope > .cond-no');
+      if(pcs) pcs.style.display = val === 'si' ? 'block' : 'none';
+      if(pcn) pcn.style.display = val === 'no' ? 'block' : 'none';
+    }
   }
+  const det = row.closest('.pregunta')?.querySelector(':scope > textarea.rdet, :scope > input.rinp');
+  if(det) { det.disabled = val === 'no'; if(val === 'no') det.value = ''; }
   const s = btn.closest('.seccion');
   if(s) actualizarTab(s.id.replace('sec-',''));
   autoSave();
@@ -600,7 +661,7 @@ function renderEmpaque() {
       )}
 
       ${preg(3,'¿Salieron exportaciones durante el turno?','emp_exp',
-        `${tbl('t-emp-exp',['Referencia','Lote','Destino / Cliente','Cantidad'])}
+        `${tbl('t-emp-exp',['Referencia','Lote','Destino / Cliente'])}
          <div class="nota-info" style="margin-top:8px">
            <strong>📌 Fotos deben incluir:</strong> producto, leyenda, peso, embalaje y sticker de la caja.
          </div>
@@ -608,7 +669,7 @@ function renderEmpaque() {
       )}
 
       ${preg(4,'¿Hay producto con más de 2 días de producción en tolvas?','emp_tolvas',
-        tbl('t-emp-tolvas',['Producto / Referencia','Tolva','Fecha de producción','Días acumulados'])
+        tblTolvas('t-emp-tolvas')
       )}
 
       ${preg(5,'¿Salió producto no conforme durante el turno?','emp_pnc',
@@ -636,7 +697,7 @@ function renderEmpaque() {
       )}
 
       ${preg(9,'¿Se realizó liberación de sticker de alguna referencia nacional (diferente a exportación)?','emp_sticker',
-        `${tbl('t-emp-sticker',['Referencia','Lote','Motivo de liberación'])}
+        `${tbl('t-emp-sticker',['Referencia','Lote','Cliente','Motivo'])}
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto del sticker liberado (referencia, lote, sticker)</div>
          ${foto('Foto del sticker','Adjuntar foto del sticker de la referencia liberada')}`
       )}
@@ -951,12 +1012,12 @@ async function generarPDF() {
     check(12);
     if(nivel===1) {
       doc.setFillColor(...C.azulM); doc.rect(ML,y,CW,8,'F');
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11);
       doc.text(txt.toUpperCase(), ML+3, y+5.5); y+=11;
     } else {
       doc.setFillColor(...C.azulCl); doc.rect(ML,y,CW,7,'F');
       doc.setDrawColor(...C.azulM); doc.rect(ML,y,CW,7,'S');
-      doc.setTextColor(...C.azulM); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+      doc.setTextColor(...C.azulM); doc.setFont('helvetica','bold'); doc.setFontSize(10);
       doc.text(txt, ML+3, y+4.8); y+=9;
     }
   }
@@ -990,8 +1051,8 @@ async function generarPDF() {
       check(h);
       doc.setFillColor(252,252,252); doc.rect(ML,y,CW,h,'F');
       doc.setDrawColor(...C.grisM); doc.rect(ML,y,CW,h,'S');
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...C.negro);
-      doc.text(lines, ML+2, y+3.2); y+=h+2;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C.negro);
+      doc.text(lines, ML+2, y+3.5); y+=h+2;
     }
   }
 
@@ -1001,12 +1062,12 @@ async function generarPDF() {
     check(16);
     const cw = CW/headers.length;
     doc.setFillColor(...C.azul); doc.rect(ML,y,CW,6,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
     headers.forEach((h,i) => doc.text(h, ML+i*cw+1.5, y+4.2)); y+=6;
     valid.forEach((row,ri) => {
       const rh=5.5; check(rh);
       doc.setFillColor(...(ri%2===0?C.gris:C.blanco)); doc.rect(ML,y,CW,rh,'F');
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C.negro);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C.negro);
       row.forEach((v,i) => doc.text(String(v||'').slice(0,28), ML+i*cw+1.5, y+3.8));
       y+=rh;
     });
@@ -1060,7 +1121,7 @@ async function generarPDF() {
   function gfgrid(secId, sinoKey){ return [...document.querySelectorAll('.fgrid')].find(g=>g.closest(`#sec-${secId}`)&&(!sinoKey||g.closest(`.pregunta`)?.querySelector(`.sino-row[data-key="${sinoKey}"]`))); }
 
   // ── PORTADA COMPACTA (no ocupa hoja completa) ──
-  // Calcular semana del año y día de la semana
+  // Calcular semana del año y día de la semana (disponibles para nombre de archivo)
   const fechaStr = gv('fecha');
   const fechaObj = fechaStr ? new Date(fechaStr+'T12:00:00') : new Date();
   const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -1124,8 +1185,8 @@ async function generarPDF() {
     campo('Máquinas lavadas', gv('emp_lavado_cuales'), gsino('emp_lavado'));
     await fotos(gfgrid('empaque','emp_lavado'));
     titulo('Máquinas fuera de servicio',2); if(gsino('emp_fs')==='si') tabla(['Máquina','Motivo','Desde cuándo'],gtbl('t-emp-fs')); else campo('Máquinas fuera de servicio','',gsino('emp_fs'));
-    titulo('Exportaciones',2); if(gsino('emp_exp')==='si'){ tabla(['Referencia','Lote','Destino','Cantidad'],gtbl('t-emp-exp')); await fotos(gfgrid('empaque','emp_exp')); } else campo('Exportaciones','',gsino('emp_exp'));
-    titulo('Producto en tolvas >2 días',2); if(gsino('emp_tolvas')==='si') tabla(['Producto','Tolva','Fecha producción','Días'],gtbl('t-emp-tolvas')); else campo('Producto en tolvas','',gsino('emp_tolvas'));
+    titulo('Exportaciones',2); if(gsino('emp_exp')==='si'){ tabla(['Referencia','Lote','Destino'],gtbl('t-emp-exp')); await fotos(gfgrid('empaque','emp_exp')); } else campo('Exportaciones','',gsino('emp_exp'));
+    titulo('Producto en tolvas >2 días',2); if(gsino('emp_tolvas')==='si') tabla(['Producto','Tolva','Fecha producción','Días almacenados'],gtbl('t-emp-tolvas')); else campo('Producto en tolvas','',gsino('emp_tolvas'));
     titulo('Producto no conforme (PNC)',2); if(gsino('emp_pnc')==='si'){ tabla(['Producto','Área','Causa','Cantidad'],gtbl('t-emp-pnc')); await fotos(gfgrid('empaque','emp_pnc')); } else campo('PNC','',gsino('emp_pnc'));
     titulo('Láminas no conformes',2); if(gsino('emp_laminas')==='si'){ tabla(['Referencia','Tipo de NC','Cantidad'],gtbl('t-emp-laminas')); await fotos(gfgrid('empaque','emp_laminas')); } else campo('Láminas NC','',gsino('emp_laminas'));
     campo('Novedades fechas de empaque — Acción tomada', gv('emp_fechas_accion'), gsino('emp_fechas'));
@@ -1134,7 +1195,7 @@ async function generarPDF() {
     if(gsino('emp_cambios')==='si') await fotos(gfgrid('empaque','emp_cambios'));
     titulo('Liberación de sticker',2);
     if(gsino('emp_sticker')==='si'){
-      tabla(['Referencia','Lote','Motivo'],gtbl('t-emp-sticker'));
+      tabla(['Referencia','Lote','Cliente','Motivo'],gtbl('t-emp-sticker'));
       await fotos(gfgrid('empaque','emp_sticker'));
     } else campo('Liberación sticker','',gsino('emp_sticker'));
     titulo('Rayos X — RX1 y RX2',2);
@@ -1198,7 +1259,15 @@ async function generarPDF() {
   }
 
   pie();
-  const fn = `Vicky_${tipoActual==='emp'?'Empaque':tipoActual==='pe'?'Procesos':'MateriaPrima'}_${gv('fecha')||'fecha'}_T${gv('turno')||'0'}.pdf`;
+  // Filename format: INFORME_EMPAQUE_S23D3_T1
+  let fn;
+  if(tipoActual==='emp') {
+    fn = `INFORME_EMPAQUE_S${semana}D${diaNum}_T${gv('turno')||'0'}.pdf`;
+  } else if(tipoActual==='pe') {
+    fn = `INFORME_PROCESOS_S${semana}D${diaNum}_T${gv('turno')||'0'}.pdf`;
+  } else {
+    fn = `INFORME_MP_S${semana}D${diaNum}.pdf`;
+  }
   doc.save(fn);
   toast('✓ PDF generado', 'verde');
 }
