@@ -134,12 +134,13 @@ function addRowTolvas(id) {
   tb.appendChild(tr);
 }
 
-function foto(labelBtn, sub) {
+function foto(labelBtn, sub, fid='') {
+  const fidAttr = fid ? ` data-fid="${fid}"` : '';
   return `<div class="fzona" onclick="this.querySelector('input').click()">
     <input type="file" accept="image/*" multiple onchange="agregarFotos(this)">
     <div>📷 ${labelBtn}</div>
     <div class="fzona-txt">${sub}</div>
-  </div><div class="fgrid"></div>`;
+  </div><div class="fgrid"${fidAttr}></div>`;
 }
 
 // Pregunta Si/No con bloque condicional
@@ -247,13 +248,13 @@ function agregarFotos(input) {
       const img  = document.createElement('img'); img.src = e.target.result; img.className = 'fthumb';
       img.onclick = () => verFoto(img.src);
       const del  = document.createElement('button'); del.className = 'fdel'; del.textContent = '×';
-      del.onclick = () => { item.remove(); autoSave(); };
+      del.onclick = () => { item.remove(); autoSaveFoto(); };
       const cap  = document.createElement('input'); cap.type = 'text'; cap.className = 'fcap-inp';
       cap.placeholder = 'Descripción...';
       cap.addEventListener('input', autoSave);
       item.appendChild(img); item.appendChild(del); item.appendChild(cap);
       grid.appendChild(item);
-      autoSave();
+      autoSaveFoto();
     };
     reader.readAsDataURL(file);
   });
@@ -299,7 +300,14 @@ function getResp(area) {
 function autoSave() {
   clearTimeout(autoTimer);
   document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  autoTimer = setTimeout(guardarNube, 1500);
+  autoTimer = setTimeout(guardarNube, 800);
+}
+
+// Guardado inmediato para fotos (sin delay)
+function autoSaveFoto() {
+  clearTimeout(autoTimer);
+  document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
+  autoTimer = setTimeout(guardarNube, 300);
 }
 
 async function guardarNube() {
@@ -333,10 +341,10 @@ function recopilarDatos() {
   const resp = {};
   document.querySelectorAll('[id^="resp-"]').forEach(tags => { resp[tags.id] = [...tags.querySelectorAll('.resp-tag')].map(t => t.dataset.nombre); });
   d._resp = resp;
-  // Fotos
+  // Fotos — usar data-fid semántico; asignar posicional solo si no tiene fid
   const fotos = {};
   document.querySelectorAll('.fgrid').forEach((grid, i) => {
-    if(!grid.dataset.fid) grid.dataset.fid = 'fg' + i;
+    if(!grid.dataset.fid) grid.dataset.fid = 'fg_pos_' + i;
     const items = [...grid.querySelectorAll('.fitem')].map(item => ({
       src: item.querySelector('img')?.src || '',
       cap: item.querySelector('.fcap-inp')?.value || ''
@@ -393,8 +401,13 @@ function restaurarDatos(d) {
     });
   }
   if(d._fotos) {
+    // Temporarily make all hidden cond-si/cond-no visible to allow fgrid matching
+    const hiddenConds = [...document.querySelectorAll('.cond-si[style*="none"],.cond-no[style*="none"]')];
+    hiddenConds.forEach(el => el.setAttribute('data-was-hidden','1'));
+    // hiddenConds.forEach(el => el.style.display='block'); // not needed, fgrids are in DOM even when hidden
+
     document.querySelectorAll('.fgrid').forEach((grid, i) => {
-      if(!grid.dataset.fid) grid.dataset.fid = 'fg' + i;
+      if(!grid.dataset.fid) grid.dataset.fid = 'fg_pos_' + i;
       const items = d._fotos[grid.dataset.fid];
       if(!items?.length) return;
       grid.innerHTML = '';
@@ -404,7 +417,7 @@ function restaurarDatos(d) {
         const img = document.createElement('img'); img.src = f.src; img.className = 'fthumb';
         img.onclick = () => verFoto(img.src);
         const del = document.createElement('button'); del.className = 'fdel'; del.textContent = '×';
-        del.onclick = () => { item.remove(); autoSave(); };
+        del.onclick = () => { item.remove(); autoSaveFoto(); };
         const cap = document.createElement('input'); cap.type = 'text'; cap.className = 'fcap-inp';
         cap.placeholder = 'Descripción...'; cap.value = f.cap || '';
         cap.addEventListener('input', autoSave);
@@ -418,12 +431,22 @@ function restaurarDatos(d) {
       const t = document.getElementById(tid); if(!t) return;
       const tb = t.querySelector('tbody');
       const cols = filas[0]?.length || 0;
-      while(tb.rows.length < filas.length) addRow(tid, cols);
+      const isTolvas = tid === 't-emp-tolvas';
+      // Ensure enough rows
+      while(tb.rows.length < filas.length) {
+        if(isTolvas) addRowTolvas(tid);
+        else addRow(tid, cols);
+      }
       [...tb.rows].forEach((tr, ri) => {
         if(!filas[ri]) return;
         [...tr.querySelectorAll('input,select')].forEach((el, ci) => {
           if(filas[ri][ci] !== undefined) el.value = filas[ri][ci];
         });
+        // Recalculate days for tolvas table
+        if(isTolvas) {
+          const dateInp = tr.querySelectorAll('input')[2];
+          if(dateInp) calcDiasTolva(dateInp);
+        }
       });
     });
   }
@@ -478,16 +501,37 @@ async function renderBorradores() {
   const lista = await window._fb.listar();
   if(!lista.length) { el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--txt-s);font-size:13px">No hay borradores guardados</div>'; return; }
   const labels = { emp:'📦 Empaque', pe:'⚙️ Procesos', mp:'🌿 Materia Prima' };
-  el.innerHTML = lista.map(d => `<div class="borrador-item">
-    <div onclick="cargarBorrador('${d.id}')" style="flex:1;cursor:pointer">
-      <div class="borrador-nombre">${labels[d.tipo]||d.tipo} — ${d.fecha||'Sin fecha'} Turno ${d.turno||'—'}</div>
-      <div class="borrador-fecha">☁️ ${d.ts ? new Date(d.ts).toLocaleString('es-CO') : '—'}</div>
-    </div>
-    <div style="display:flex;gap:6px">
-      <button class="btn-mini" onclick="cargarBorrador('${d.id}')">Continuar</button>
-      <button class="btn-mini btn-mini-r" onclick="eliminarBorrador('${d.id}',event)">Eliminar</button>
-    </div>
-  </div>`).join('');
+  const LIMITE_MS = 12 * 60 * 60 * 1000; // 12 horas
+  const ahora = Date.now();
+  // Auto-eliminar borradores de más de 12 horas
+  for(const d of lista) {
+    if(d.ts && (ahora - d.ts) > LIMITE_MS) {
+      await window._fb.eliminar(d.id);
+    }
+  }
+  const vigentes = lista.filter(d => !d.ts || (ahora - d.ts) <= LIMITE_MS);
+  if(!vigentes.length) {
+    el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--txt-s);font-size:13px">No hay borradores guardados</div>';
+    return;
+  }
+  el.innerHTML = vigentes.map(d => {
+    const msRestantes = LIMITE_MS - (ahora - (d.ts||ahora));
+    const hRestantes = Math.max(0, Math.floor(msRestantes / 3600000));
+    const mRestantes = Math.max(0, Math.floor((msRestantes % 3600000) / 60000));
+    const colorTiempo = hRestantes < 2 ? 'var(--rojo)' : hRestantes < 4 ? 'var(--naranja)' : 'var(--txt-s)';
+    return `<div class="borrador-item">
+      <div onclick="cargarBorrador('${d.id}')" style="flex:1;cursor:pointer">
+        <div class="borrador-nombre">${labels[d.tipo]||d.tipo} — ${d.fecha||'Sin fecha'} Turno ${d.turno||'—'}</div>
+        <div class="borrador-fecha">☁️ ${d.ts ? new Date(d.ts).toLocaleString('es-CO') : '—'} &nbsp;
+          <span style="color:${colorTiempo};font-weight:500">⏱ Expira en ${hRestantes}h ${mRestantes}m</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-mini" onclick="cargarBorrador('${d.id}')">Continuar</button>
+        <button class="btn-mini btn-mini-r" onclick="eliminarBorrador('${d.id}',event)">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function cargarBorrador(id) {
@@ -653,7 +697,7 @@ function renderEmpaque() {
       ${preg(1,'¿Se lavaron máquinas durante el turno?','emp_lavado',
         `<textarea class="rdet" data-campo="emp_lavado_cuales" placeholder="¿Qué máquinas se lavaron? Nombre y número..." oninput="autoSave()"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de las máquinas lavadas</div>
-         ${foto('Adjuntar foto de cada máquina lavada','Una foto por máquina')}`
+         ${foto('Adjuntar foto de cada máquina lavada','Una foto por máquina','f_lavado')}`
       )}
 
       ${preg(2,'¿Hay máquinas fuera de servicio?','emp_fs',
@@ -665,7 +709,7 @@ function renderEmpaque() {
          <div class="nota-info" style="margin-top:8px">
            <strong>📌 Fotos deben incluir:</strong> producto, leyenda, peso, embalaje y sticker de la caja.
          </div>
-         ${foto('Fotos de exportaciones','Producto + leyenda + peso + embalaje + sticker')}`
+         ${foto('Fotos de exportaciones','Producto + leyenda + peso + embalaje + sticker','f_exp')}`
       )}
 
       ${preg(4,'¿Hay producto con más de 2 días de producción en tolvas?','emp_tolvas',
@@ -675,31 +719,31 @@ function renderEmpaque() {
       ${preg(5,'¿Salió producto no conforme durante el turno?','emp_pnc',
         `${tbl('t-emp-pnc',['Producto','Área','Causa','Cantidad'])}
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto del formato de no conforme</div>
-         ${foto('Adjuntar foto del formato diligenciado','Foto obligatoria del formato')}`
+         ${foto('Adjuntar foto del formato diligenciado','Foto obligatoria del formato','f_pnc')}`
       )}
 
       ${preg(6,'¿Salieron láminas no conformes durante el turno?','emp_laminas',
         `${tbl('t-emp-laminas',['Referencia','Tipo de no conformidad','Cantidad'])}
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto del formato y de la lámina</div>
-         ${foto('Foto del formato + foto de la lámina','Adjuntar ambas fotos')}`
+         ${foto('Foto del formato + foto de la lámina','Adjuntar ambas fotos','f_laminas')}`
       )}
 
       ${preg(7,'¿Hubo novedades con fechas de empaque?','emp_fechas',
         `<textarea class="rdet" data-campo="emp_fechas_accion" placeholder="¿Qué se hizo? Describa la acción tomada..." oninput="autoSave()"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de la novedad</div>
-         ${foto('Adjuntar evidencia fotográfica','Foto de la novedad de fechas')}`
+         ${foto('Adjuntar evidencia fotográfica','Foto de la novedad de fechas','f_fechas')}`
       )}
 
       ${preg(8,'¿Hay algún cambio o autorización de producto que no se saca habitualmente?','emp_cambios',
         `<textarea class="rdet" data-campo="emp_cambios_cual" placeholder="¿Cuál producto y quién autorizó?" oninput="autoSave()"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de la novedad / autorización</div>
-         ${foto('Adjuntar evidencia fotográfica','Foto del cambio o autorización')}`
+         ${foto('Adjuntar evidencia fotográfica','Foto del cambio o autorización','f_cambios')}`
       )}
 
       ${preg(9,'¿Se realizó liberación de sticker de alguna referencia nacional (diferente a exportación)?','emp_sticker',
         `${tbl('t-emp-sticker',['Referencia','Lote','Cliente','Motivo'])}
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto del sticker liberado (referencia, lote, sticker)</div>
-         ${foto('Foto del sticker','Adjuntar foto del sticker de la referencia liberada')}`
+         ${foto('Foto del sticker','Adjuntar foto del sticker de la referencia liberada','f_sticker')}`
       )}
 
       <div class="pregunta" id="preg-rx">
@@ -775,7 +819,7 @@ function renderPE() {
       ${preg(6,'¿Se realizaron limpiezas de tanques?',linea+'_tanques',
         tbl('t-'+linea+'-tanques',['Tanque','Tipo de limpieza','Responsable']) +
         `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de limpieza de tanques (obligatorio)</div>
-        ${foto('Evidencia fotográfica de cada tanque','Foto obligatoria de cada tanque limpiado')}`
+        ${foto('Evidencia fotográfica de cada tanque','Foto obligatoria de cada tanque limpiado',`f_${linea}_tanques`)}`
       )}
       ${preg(7,'¿Se limpiaron bombos para cambio de referencia?',linea+'_bombos', tbl('t-'+linea+'-bombos',['Bombo','Referencia anterior','Referencia nueva']))}
       ${preg(8,'¿Se reprocesó papa de otro sabor?',linea+'_reproc', tbl('t-'+linea+'-reproc',['Referencia','Cantidad (kg)','Sabor original']))}
@@ -790,7 +834,7 @@ function renderPE() {
       ${preg(11,'¿Hubo producto no conforme?',linea+'_pnc',
         tbl('t-'+linea+'-pnc',['Descripción','Causa','Cantidad','Disposición']) +
         `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos PNC — Línea ${L}</div>
-        ${foto('Adjuntar evidencia fotográfica','Foto del PNC')}`
+        ${foto('Adjuntar evidencia fotográfica','Foto del PNC',`f_${linea}_pnc`)}`
       )}
       <div class="sep"></div>
       ${tbl('t-'+linea,['Referencia','% Saborización','Observaciones'],3)}
@@ -814,7 +858,7 @@ function renderPE() {
     ${preg(5,'¿Las dimensiones del producto presentaron incumplimientos?','ext_dim', tbl('t-ext-dim',['Referencia','Valor registrado','Especificación','Acción']))}
     ${preg(6,'¿Se generó producto no conforme (PNC)?','ext_pnc',
       tbl('t-ext-pnc',['Referencia','Descripción','Causa','Cantidad']) +
-      `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos PNC / incumplimientos</div>${foto('Fotos de PNC','Solo fotos de lo que no cumplió')}`
+      `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos PNC / incumplimientos</div>${foto('Fotos de PNC','Solo fotos de lo que no cumplió','f_ext_pnc')}`
     )}
     <div class="sep"></div>
     ${tbl('t-extruido',['Referencia','Densidad','¿Cumple densidad?','¿Cumple dimensiones?','Observaciones'])}
@@ -842,7 +886,7 @@ function renderPE() {
     <div class="sep"></div>
     ${tbl('t-rosquilla',['Referencia','Cant. Batch','Corte Crudo','Peso Final','T° Amb.','T° Masa','T. Reposo','Humedad %','T° Cuarto'],2)}
     <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de cambios y PNC</div>
-    ${foto('Solo de cambios relevantes y PNC','Adjuntar evidencia fotográfica')}
+    ${foto('Solo de cambios relevantes y PNC','Adjuntar evidencia fotográfica','f_ros_fotos')}
   `)}
 
   ${sec('tortillas','🟤','Tortillas', mkResp('tortillas','Responsable(s) Tortillas') + `
@@ -856,7 +900,7 @@ function renderPE() {
     <div class="sep"></div>
     ${tbl('t-tortillas',['Referencia','Peso Crudo','Peso Horneado','T. Reposo','T. Horneado','T. Freído','% Sabor.','Responsable'])}
     <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de incumplimientos</div>
-    ${foto('Solo de lo que salió mal','PNC, desviaciones o fallas')}
+    ${foto('Solo de lo que salió mal','PNC, desviaciones o fallas','f_tort_fotos')}
   `)}
 
   ${sec('trocillo','🟧','Trocillo', mkResp('trocillo','Responsable(s) Trocillo') + `
@@ -875,7 +919,7 @@ function renderPE() {
     ${preg(4,'¿El proceso arrancó con mezcla de aceite?','troc_mezcla', `<textarea class="rdet" data-campo="troc_mezcla_det" placeholder="Describa la mezcla utilizada..." oninput="autoSave()"></textarea>`)}
     ${preg(5,'¿Las dimensiones presentaron incumplimientos?','troc_dim',
       tbl('t-troc-dim',['Variable','Valor registrado','Especificación','Acción']) +
-      `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto si no cumple</div>${foto('Foto de dimensiones','Solo si hubo incumplimiento')}`
+      `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto si no cumple</div>${foto('Foto de dimensiones','Solo si hubo incumplimiento','f_troc_dim')}`
     )}
     ${preg(6,'¿Las densidades presentaron desviaciones?','troc_dens', tbl('t-troc-dens',['Referencia','Densidad','Parámetro','Causa']))}
     ${preg(7,'¿Hubo algún equipo con falla?','troc_falla', tbl('t-troc-falla',['Equipo','Descripción de la falla','Acción tomada']))}
@@ -929,7 +973,7 @@ function renderPE() {
     <div class="sep"></div>
     ${tbl('t-pellet',['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'])}
     <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de tanque y PNC</div>
-    ${foto('Fotos de tanque y producto no conforme','Solo fotos de tanque y PNC')}
+    ${foto('Fotos de tanque y producto no conforme','Solo fotos de tanque y PNC','f_pellet_fotos')}
   `)}`;
 
   document.querySelector('[data-campo="fecha"]').valueAsDate = new Date();
@@ -960,7 +1004,7 @@ function renderMP() {
       `<textarea class="rdet" data-campo="mp_compras_det" placeholder="Si hubo rechazos, especifique cuáles y el motivo..." oninput="autoSave()"></textarea>`
     )}
     <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de recepciones del turno</div>
-    ${foto('Una foto por cada recepción realizada','Foto obligatoria de cada recepción')}
+    ${foto('Una foto por cada recepción realizada','Foto obligatoria de cada recepción','f_mp_recepcion')}
     <div class="sep"></div>
     <div class="preg-label" style="margin-bottom:8px"><strong>Registro por proveedor</strong></div>
     ${tbl('t-mp',['Proveedor','Referencia','% Aceptación','Sólidos totales','Observaciones'],2)}
