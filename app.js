@@ -636,12 +636,31 @@ function renderEmpaque() {
       )}
 
       ${preg(9,'¿Se realizó liberación de sticker de alguna referencia nacional (diferente a exportación)?','emp_sticker',
-        tbl('t-emp-sticker',['Referencia','Lote','Motivo de liberación'])
+        `${tbl('t-emp-sticker',['Referencia','Lote','Motivo de liberación'])}
+         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto del sticker liberado (referencia, lote, sticker)</div>
+         ${foto('Foto del sticker','Adjuntar foto del sticker de la referencia liberada')}`
       )}
 
       <div class="pregunta">
-        <div class="preg-label"><span class="pnum">10</span>¿Qué productos se pasaron por RX1 y RX2 durante el turno?</div>
-        ${tblSel('t-emp-rx',['Equipo','Referencia','Lote','Fecha vencimiento','¿Conforme?'],0,['RX1','RX2'])}
+        <div class="preg-label"><span class="pnum">10</span>Rayos X — Estado y productos inspeccionados</div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿RX1 se encuentra operando?</div>
+            <div class="sino-row" data-key="emp_rx1_op">
+              <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
+              <button class="rbtn" onclick="siNo(this,'no')">No</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿RX2 se encuentra operando?</div>
+            <div class="sino-row" data-key="emp_rx2_op">
+              <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
+              <button class="rbtn" onclick="siNo(this,'no')">No</button>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:6px">Productos inspeccionados por RX1 y RX2</div>
+        ${tbl('t-emp-rx',['Equipo (RX1/RX2)','Referencia','Lote'])}
       </div>
 
       ${preg(11,'¿Hubo máquinas con desviaciones de peso durante el turno?','emp_peso',
@@ -902,13 +921,13 @@ async function generarPDF() {
   function check(h=8) { if(y+h > PH-MB) { pie(); doc.addPage(); pg++; y=MT; cabecera(); } }
 
   function cabecera() {
-    doc.setFillColor(...C.azul); doc.rect(0,0,PW,13,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    const tit = tipoActual==='emp'?'Informe de Empaque':tipoActual==='pe'?'Informe de Procesos':'Informe de Materia Prima';
-    doc.text('Productos Vicky S.A.S. — '+tit, ML, 8.5);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.setFillColor(...C.azul); doc.rect(0,0,PW,11,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    const titH = tipoActual==='emp'?'Informe de Empaque':tipoActual==='pe'?'Informe de Procesos':'Informe de Materia Prima';
+    doc.text('Productos Vicky S.A.S. — '+titH, ML, 7);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7);
     const fecha=gv('fecha'),turno=gv('turno');
-    doc.text(`Fecha: ${fecha} | Turno: ${turno} | Pág. ${pg}`, PW-ML, 12, {align:'right'});
+    doc.text(`Fecha: ${fecha} | Turno: ${turno} | Pág. ${pg}`, PW-ML, 7, {align:'right'});
   }
 
   function pie() {
@@ -1027,29 +1046,64 @@ async function generarPDF() {
   function gtbl(id){ const t=document.getElementById(id); if(!t) return []; return [...t.querySelectorAll('tbody tr')].map(tr=>[...tr.querySelectorAll('input,select')].map(el=>el.value)); }
   function gfgrid(secId, sinoKey){ return [...document.querySelectorAll('.fgrid')].find(g=>g.closest(`#sec-${secId}`)&&(!sinoKey||g.closest(`.pregunta`)?.querySelector(`.sino-row[data-key="${sinoKey}"]`))); }
 
-  // ── PORTADA ──
-  doc.setFillColor(...C.azul); doc.rect(0,0,PW,45,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  // ── PORTADA COMPACTA (no ocupa hoja completa) ──
+  // Calcular semana del año y día de la semana
+  const fechaStr = gv('fecha');
+  const fechaObj = fechaStr ? new Date(fechaStr+'T12:00:00') : new Date();
+  const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const numDiaSemana = ['7','1','2','3','4','5','6']; // Lunes=1...Domingo=7
+  const diaNom = diasSemana[fechaObj.getDay()];
+  const diaNum = numDiaSemana[fechaObj.getDay()];
+  // Semana ISO del año
+  const d = new Date(Date.UTC(fechaObj.getFullYear(), fechaObj.getMonth(), fechaObj.getDate()));
+  d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const semana = Math.ceil((((d-yearStart)/86400000)+1)/7);
+
   const tit = tipoActual==='emp'?'INFORME DE EMPAQUE':tipoActual==='pe'?'INFORME DE PROCESOS':'INFORME DE MATERIA PRIMA';
-  doc.text(tit, PW/2, 18, {align:'center'});
-  doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('PRODUCTOS VICKY S.A.S.', PW/2, 27, {align:'center'});
-  doc.text(new Date().toLocaleString('es-CO'), PW/2, 35, {align:'center'});
-  doc.setFillColor(...C.azulCl); doc.rect(ML,50,CW,28,'F');
-  doc.setDrawColor(...C.azulM); doc.rect(ML,50,CW,28,'S');
-  const infoRows = tipoActual==='emp'
-    ? [['Fecha:', gv('fecha')||'—'],['Turno:', gv('turno')||'—']]
-    : [['Fecha:', gv('fecha')||'—'],['Turno:', gv('turno')||'—'],['Código:', gv('codigo')||'—']];
-  const infoH = infoRows.length * 9 + 4;
-  doc.setFillColor(...C.azulCl); doc.rect(ML,50,CW,infoH,'F');
-  doc.setDrawColor(...C.azulM); doc.rect(ML,50,CW,infoH,'S');
-  infoRows.forEach(([l,v],i)=>{
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...C.azulM);
-    doc.text(l, ML+4, 58+i*9);
+  const responsables = tipoActual==='emp'?getResp('empaque').join(', '):tipoActual==='pe'?getResp('extruido').join(', '):getResp('mp').join(', ');
+
+  // Banner título
+  doc.setFillColor(...C.azul); doc.rect(0,0,PW,18,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(tit, PW/2, 8, {align:'center'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('PRODUCTOS VICKY S.A.S.', PW/2, 14, {align:'center'});
+
+  // Bloque de datos en 2 columnas lado a lado
+  const bY = 21, bH = 22, col1W = CW*0.5, col2W = CW*0.5;
+  doc.setFillColor(...C.azulCl); doc.rect(ML, bY, CW, bH,'F');
+  doc.setDrawColor(...C.azulM); doc.rect(ML, bY, CW, bH,'S');
+  // Línea divisoria vertical
+  doc.setDrawColor(...C.azulM); doc.line(ML+col1W, bY, ML+col1W, bY+bH);
+
+  const col1 = [
+    ['Responsable:', responsables||'—'],
+    ['Turno:', gv('turno')||'—'],
+  ];
+  const col2 = [
+    ['Fecha:', fechaStr||'—'],
+    ['Semana:', `Semana ${semana} del año`],
+    ['Día:', `${diaNom} (${diaNum})`],
+  ];
+
+  doc.setFontSize(7.5);
+  col1.forEach(([l,v],i) => {
+    doc.setFont('helvetica','bold'); doc.setTextColor(...C.azulM);
+    doc.text(l, ML+2, bY+5+i*7);
     doc.setFont('helvetica','normal'); doc.setTextColor(...C.negro);
-    doc.text(v, ML+40, 58+i*9);
+    const vt = doc.splitTextToSize(v, col1W-20); 
+    doc.text(vt[0]||v, ML+22, bY+5+i*7);
   });
-  pie(); doc.addPage(); pg++; y=MT; cabecera();
+  col2.forEach(([l,v],i) => {
+    doc.setFont('helvetica','bold'); doc.setTextColor(...C.azulM);
+    doc.text(l, ML+col1W+3, bY+5+i*6);
+    doc.setFont('helvetica','normal'); doc.setTextColor(...C.negro);
+    doc.text(v, ML+col1W+22, bY+5+i*6);
+  });
+
+  y = bY + bH + 6;
+  pie();
 
   if(tipoActual==='emp') {
     titulo('Empaque');
@@ -1065,8 +1119,15 @@ async function generarPDF() {
     if(gsino('emp_fechas')==='si') await fotos(gfgrid('empaque','emp_fechas'));
     campo('Cambio / Autorización especial', gv('emp_cambios_cual'), gsino('emp_cambios'));
     if(gsino('emp_cambios')==='si') await fotos(gfgrid('empaque','emp_cambios'));
-    titulo('Liberación de sticker',2); if(gsino('emp_sticker')==='si') tabla(['Referencia','Lote','Motivo'],gtbl('t-emp-sticker')); else campo('Liberación sticker','',gsino('emp_sticker'));
-    titulo('Rayos X — RX1 y RX2',2); tabla(['Equipo','Referencia','Lote','Fecha Venc.','¿Conforme?'],gtbl('t-emp-rx'));
+    titulo('Liberación de sticker',2);
+    if(gsino('emp_sticker')==='si'){
+      tabla(['Referencia','Lote','Motivo'],gtbl('t-emp-sticker'));
+      await fotos(gfgrid('empaque','emp_sticker'));
+    } else campo('Liberación sticker','',gsino('emp_sticker'));
+    titulo('Rayos X — RX1 y RX2',2);
+    campo('RX1 operando', '', gsino('emp_rx1_op'));
+    campo('RX2 operando', '', gsino('emp_rx2_op'));
+    tabla(['Equipo','Referencia','Lote'],gtbl('t-emp-rx'));
     titulo('Desviaciones de peso',2); if(gsino('emp_peso')==='si') tabla(['Máquina','Referencia','Desviación','Acción'],gtbl('t-emp-peso')); else campo('Desviaciones de peso','',gsino('emp_peso'));
     const otras = gv('emp_otras'); if(otras){ titulo('Otras novedades',2); campo('Novedades',otras); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('.pregunta [data-campo="emp_otras"]')?.closest('.pregunta')===g.closest('.pregunta'))); }
 
