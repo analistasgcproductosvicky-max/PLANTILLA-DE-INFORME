@@ -44,7 +44,7 @@ function sec(id, icon, titulo, cuerpo) {
 }
 
 function mkResp(area, label) {
-  const rid = 'resp-' + area + '-' + Math.random().toString(36).slice(2,6);
+  const rid = 'resp-' + area;
   const items = (PERSONAS_AREA[area]||[]).map(p =>
     `<div class="resp-menu-item" onclick="agregarResp('${rid}','${p}','menu-${rid}')">${p}</div>`
   ).join('');
@@ -932,27 +932,36 @@ async function generarPDF() {
   }
 
   function campo(label, val, sino=null) {
-    if(!val && sino==='no') return;
-    if(!val?.trim() && !sino) return;
-    check(8);
-    const bg = sino==='no'?C.rojoCl:C.gris;
-    doc.setFillColor(...bg); doc.rect(ML,y,CW,6,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...(sino==='no'?C.rojo:C.azulM));
-    doc.text(label, ML+2, y+4.2);
-    if(sino) {
-      const lbl = sino==='si'?'✓ SÍ':'✗ NO';
-      doc.setTextColor(...(sino==='si'?C.verde:C.rojo));
-      doc.text(lbl, PW-MR-2, y+4.2, {align:'right'});
+    if(sino==='no' && !val?.trim()) {
+      // Solo mostrar label + NO en una línea compacta
+      check(6);
+      doc.setFillColor(...C.rojoCl); doc.rect(ML,y,CW,5.5,'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C.rojo);
+      doc.text(label, ML+2, y+3.8);
+      doc.setFont('helvetica','bold');
+      doc.text('[NO]', PW-MR-2, y+3.8, {align:'right'});
+      y+=6; return;
     }
-    y+=7;
+    if(!val?.trim() && !sino) return;
+    check(7);
+    doc.setFillColor(...C.gris); doc.rect(ML,y,CW,5.5,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...C.azulM);
+    doc.text(label, ML+2, y+3.8);
+    if(sino) {
+      const color = sino==='si'?C.verde:C.rojo;
+      const lbl = sino==='si'?'[SI]':'[NO]';
+      doc.setTextColor(...color); doc.setFont('helvetica','bold');
+      doc.text(lbl, PW-MR-2, y+3.8, {align:'right'});
+    }
+    y+=6;
     if(val?.trim() && sino!=='no') {
-      const lines = doc.splitTextToSize(val, CW-4);
-      const h = lines.length*4+4;
+      const lines = doc.splitTextToSize(val, CW-5);
+      const h = lines.length*4.2+3;
       check(h);
       doc.setFillColor(252,252,252); doc.rect(ML,y,CW,h,'F');
       doc.setDrawColor(...C.grisM); doc.rect(ML,y,CW,h,'S');
       doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...C.negro);
-      doc.text(lines, ML+2, y+3.5); y+=h+2;
+      doc.text(lines, ML+2, y+3.2); y+=h+2;
     }
   }
 
@@ -977,29 +986,39 @@ async function generarPDF() {
 
   async function fotos(gridEl) {
     if(!gridEl) return;
-    const imgs = gridEl.querySelectorAll('.fitem img');
+    const imgs = [...gridEl.querySelectorAll('.fitem img')];
     if(!imgs.length) return;
     check(8);
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...C.azulM);
-    doc.text('Evidencia fotográfica:', ML, y+4); y+=7;
+    doc.text('Evidencia fotografica:', ML, y+4); y+=7;
+    // 2 fotos por fila, aprovechar ancho
+    const gap = 4, cols = 2;
+    const fw = (CW - gap*(cols-1)) / cols;
+    let col = 0, rowY = y, rowH = 0;
     for(const img of imgs) {
       const nw = img.naturalWidth||800, nh = img.naturalHeight||600;
       const ratio = nw/nh;
-      let fw = Math.min(CW, 110), fh = fw/ratio;
-      if(fh > 75) { fh=75; fw=fh*ratio; }
-      check(fh+8);
+      let fh = fw/ratio;
+      if(fh > 85) { fh = 85; }
+      const capH = img.nextElementSibling?.value ? 8 : 0;
+      const totalH = fh + capH;
+      if(col === 0) { check(totalH+4); rowY = y; rowH = totalH; }
+      rowH = Math.max(rowH, totalH);
+      const x = ML + col*(fw+gap);
       try {
         const fmt = img.src.startsWith('data:image/png')?'PNG':'JPEG';
-        doc.addImage(img.src,fmt,ML,y,fw,fh,'','MEDIUM');
-        doc.setDrawColor(...C.grisM); doc.rect(ML,y,fw,fh,'S');
+        doc.addImage(img.src,fmt,x,rowY,fw,fh,'','MEDIUM');
+        doc.setDrawColor(...C.grisM); doc.rect(x,rowY,fw,fh,'S');
         const cap = img.nextElementSibling?.value||'';
         if(cap) {
           doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...C.suave);
-          doc.text(cap, ML+fw/2, y+fh+4, {align:'center', maxWidth:fw});
+          doc.text(cap, x+fw/2, rowY+fh+4, {align:'center', maxWidth:fw});
         }
-        y += fh+(cap?9:5);
       } catch(e){}
+      col++;
+      if(col >= cols) { col=0; y = rowY+rowH+4; rowH=0; }
     }
+    if(col > 0) y = rowY+rowH+4;
     y+=2;
   }
 
@@ -1018,11 +1037,17 @@ async function generarPDF() {
   doc.text(new Date().toLocaleString('es-CO'), PW/2, 35, {align:'center'});
   doc.setFillColor(...C.azulCl); doc.rect(ML,50,CW,28,'F');
   doc.setDrawColor(...C.azulM); doc.rect(ML,50,CW,28,'S');
-  [['Fecha:', gv('fecha')||'—'],['Turno:', gv('turno')||'—'],['Código:', gv('codigo')||'—']].forEach(([l,v],i)=>{
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C.azulM);
-    doc.text(l, ML+4, 58+i*7);
+  const infoRows = tipoActual==='emp'
+    ? [['Fecha:', gv('fecha')||'—'],['Turno:', gv('turno')||'—']]
+    : [['Fecha:', gv('fecha')||'—'],['Turno:', gv('turno')||'—'],['Código:', gv('codigo')||'—']];
+  const infoH = infoRows.length * 9 + 4;
+  doc.setFillColor(...C.azulCl); doc.rect(ML,50,CW,infoH,'F');
+  doc.setDrawColor(...C.azulM); doc.rect(ML,50,CW,infoH,'S');
+  infoRows.forEach(([l,v],i)=>{
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...C.azulM);
+    doc.text(l, ML+4, 58+i*9);
     doc.setFont('helvetica','normal'); doc.setTextColor(...C.negro);
-    doc.text(v, ML+40, 58+i*7);
+    doc.text(v, ML+40, 58+i*9);
   });
   pie(); doc.addPage(); pg++; y=MT; cabecera();
 
