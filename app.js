@@ -987,28 +987,87 @@ function renderMP() {
   c.innerHTML = `
   <div class="datos-card">
     <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave()"></div>
-    <div class="dato-item"><label>Código</label><input type="text" class="dato-inp" data-campo="codigo" placeholder="Ej. MP-226" oninput="autoSave()"></div>
   </div>
 
-  ${sec('mp','🌿','Recepción de Materia Prima', mkResp('mp','Responsable(s) Materia Prima') + `
-    ${preg(1,'¿Se identificaron materias primas con fechas cortas en bodega?','mp_fechas',
-      tbl('t-mp-fechas',['Materia prima','Fecha de vencimiento','Cantidad disponible'])
-    )}
-    ${preg(2,'¿Se realizó rotación del cuarto de papa?','mp_rotacion',
-      `<textarea class="rdet" data-campo="mp_rotacion_det" placeholder="Describa la rotación realizada..." oninput="autoSave()"></textarea>`
-    )}
-    ${preg(3,'¿Se midieron los sólidos totales?','mp_solidos',
-      `<input class="rinp" type="text" data-campo="mp_solidos_val" placeholder="Valor medido (%)" oninput="autoSave()">`
-    )}
-    ${preg(4,'¿Compras aceptó todos los insumos recibidos?','mp_compras',
-      `<textarea class="rdet" data-campo="mp_compras_det" placeholder="Si hubo rechazos, especifique cuáles y el motivo..." oninput="autoSave()"></textarea>`
-    )}
-    <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de recepciones del turno</div>
-    ${foto('Una foto por cada recepción realizada','Foto obligatoria de cada recepción','f_mp_recepcion')}
-    <div class="sep"></div>
-    <div class="preg-label" style="margin-bottom:8px"><strong>Registro por proveedor</strong></div>
-    ${tbl('t-mp',['Proveedor','Referencia','% Aceptación','Sólidos totales','Observaciones'],2)}
-  `)}`;
+  <div class="seccion" id="sec-mp">
+    <div class="sec-header" onclick="toggleSec(this)">
+      <div class="sec-icon">🌿</div>
+      <div class="sec-titulo">Recepción de Materia Prima</div>
+      <span class="sec-chev ab">▼</span>
+    </div>
+    <div class="sec-body ab">
+      ${mkResp('mp','Responsable(s) Materia Prima')}
+
+      ${preg(1,'¿Llegó papa?','mp_papa', `
+        ${tbl('t-mp-papa',['Referencia','Proveedor','Aceptabilidad'],2)}
+        <div class="pregunta" style="margin-top:10px;border:none;padding:0">
+          <div class="preg-label" style="margin-bottom:6px">¿Se hizo prueba de sólidos?</div>
+          <div class="sino-row" data-key="mp_papa_solidos">
+            <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
+            <button class="rbtn" onclick="siNo(this,'no')">No</button>
+          </div>
+          <div class="cond-si" style="display:none">
+            <input class="rinp" type="text" data-campo="mp_papa_solidos_val" placeholder="¿Cuánto dio % sólidos?" oninput="autoSave()">
+          </div>
+        </div>
+        <textarea class="rdet" style="margin-top:8px" data-campo="mp_papa_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
+        ${foto('Fotos de recepción de papa','Adjuntar fotos','f_mp_papa')}
+      `)}
+
+      ${preg(2,'¿Llegó queso?','mp_queso', `
+        ${tbl('t-mp-queso',['Proveedor','Peso (kg)','PNC'],1)}
+        <textarea class="rdet" style="margin-top:8px" data-campo="mp_queso_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
+        ${foto('Fotos de recepción de queso','Adjuntar fotos','f_mp_queso')}
+      `)}
+
+      ${preg(3,'¿Llegó plátano?','mp_platano', `
+        <div class="grid2" style="margin-bottom:8px">
+          <div><label style="font-size:12px;color:var(--txt-s)">Referencia</label>
+            <select class="rinp" data-campo="mp_platano_ref" onchange="autoSave()">
+              <option value="">Seleccione...</option>
+              <option>Pelado</option><option>Freído</option>
+            </select></div>
+          <div><label style="font-size:12px;color:var(--txt-s)">Proveedor</label>
+            <input class="rinp" type="text" data-campo="mp_platano_prov" placeholder="Proveedor" oninput="autoSave()"></div>
+        </div>
+        <div class="preg-label" style="margin-bottom:5px;font-size:12px">Condiciones de transporte</div>
+        <div class="sino-row" data-key="mp_platano_trans">
+          <button class="rbtn" onclick="siNo(this,'si')">Conforme</button>
+          <button class="rbtn" onclick="siNo(this,'no')">No conforme</button>
+        </div>
+        <div class="cond-no" style="display:none;margin-top:6px">
+          <textarea class="rdet" data-campo="mp_platano_trans_det" placeholder="¿Cuál no conformidad?" oninput="autoSave()" style="min-height:50px"></textarea>
+        </div>
+        <textarea class="rdet" style="margin-top:8px" data-campo="mp_platano_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
+        ${foto('Fotos de recepción de plátano','Adjuntar fotos','f_mp_platano')}
+      `)}
+
+      ${preg(4,'¿Llegaron láminas?','mp_laminas', `
+        ${tbl('t-mp-laminas',['Referencia','Proveedor','Lote','Observación'],2)}
+      `)}
+
+      ${preg(5,'¿Salieron láminas no conformes identificadas en la recepción?','mp_laminas_nc', `
+        ${tbl('t-mp-laminas-nc',['Referencia','Proveedor','Motivo'],1)}
+        ${foto('Foto de la lámina no conforme','Adjuntar foto','f_mp_laminas_nc')}
+      `)}
+
+      ${preg(6,'¿Llegó maíz?','mp_maiz', `
+        ${tbl('t-mp-maiz',['Cuánto llegó (kg)','Lote','Proveedor','Observación'],1)}
+        ${foto('Fotos de recepción de maíz','Adjuntar fotos','f_mp_maiz')}
+      `)}
+
+      <div class="sep"></div>
+      <div class="preg-label" style="margin-bottom:8px"><strong>Otras recepciones</strong></div>
+      ${tbl('t-mp-otras',['Producto','Lote','Fecha vencimiento','Observación'],2)}
+      <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de otras recepciones</div>
+      ${foto('Adjuntar fotos','Fotos de otras recepciones','f_mp_otras')}
+
+      <div class="sep"></div>
+      <div class="preg-label" style="margin-bottom:8px"><strong>Reporte de fechas cortas en bodega</strong></div>
+      ${tbl('t-mp-fechas',['Materia prima','Lote','Fecha de vencimiento'],2)}
+
+    </div>
+  </div>`;
 
   document.querySelector('[data-campo="fecha"]').valueAsDate = new Date();
 }
@@ -1023,7 +1082,7 @@ async function generarPDF() {
   toast('Generando PDF...');
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'p', unit:'mm', format:'a4'});
-  const PW=210,PH=297,ML=14,MR=14,MT=18,MB=18,CW=PW-ML-MR;
+  const PW=210,PH=297,ML=14,MR=14,MT=20,MB=18,CW=PW-ML-MR;
   let y=MT, pg=1;
 
   const C = {
@@ -1037,13 +1096,13 @@ async function generarPDF() {
   function check(h=8) { if(y+h > PH-MB) { pie(); doc.addPage(); pg++; y=MT; cabecera(); } }
 
   function cabecera() {
-    doc.setFillColor(...C.azul); doc.rect(0,0,PW,11,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.setFillColor(...C.azul); doc.rect(0,0,PW,13,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(10);
     const titH = tipoActual==='emp'?'Informe de Empaque':tipoActual==='pe'?'Informe de Procesos':'Informe de Materia Prima';
-    doc.text('Productos Vicky S.A.S. — '+titH, ML, 7);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.text('Productos Vicky S.A.S. — '+titH, ML, 8.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
     const fecha=gv('fecha'),turno=gv('turno');
-    doc.text(`Fecha: ${fecha} | Turno: ${turno} | Pág. ${pg}`, PW-ML, 7, {align:'right'});
+    doc.text(`Fecha: ${fecha} | Turno: ${turno} | Pág. ${pg}`, PW-ML, 8.5, {align:'right'});
   }
 
   function pie() {
@@ -1198,18 +1257,17 @@ async function generarPDF() {
   const tit = tipoActual==='emp'?'INFORME DE EMPAQUE':tipoActual==='pe'?'INFORME DE PROCESOS':'INFORME DE MATERIA PRIMA';
   const responsables = tipoActual==='emp'?getResp('empaque').join(', '):tipoActual==='pe'?getResp('extruido').join(', '):getResp('mp').join(', ');
 
-  // Banner título
-  doc.setFillColor(...C.azul); doc.rect(0,0,PW,18,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
-  doc.text(tit, PW/2, 8, {align:'center'});
-  doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text('PRODUCTOS VICKY S.A.S.', PW/2, 14, {align:'center'});
+  // Banner título — fuente más grande
+  doc.setFillColor(...C.azul); doc.rect(0,0,PW,22,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text(tit, PW/2, 10, {align:'center'});
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('PRODUCTOS VICKY S.A.S.', PW/2, 17, {align:'center'});
 
-  // Bloque de datos en 2 columnas lado a lado
-  const bY = 21, bH = 22, col1W = CW*0.5, col2W = CW*0.5;
+  // Bloque de datos en 2 columnas — más alto para fuente grande
+  const bY = 25, bH = 30, col1W = CW*0.5;
   doc.setFillColor(...C.azulCl); doc.rect(ML, bY, CW, bH,'F');
   doc.setDrawColor(...C.azulM); doc.rect(ML, bY, CW, bH,'S');
-  // Línea divisoria vertical
   doc.setDrawColor(...C.azulM); doc.line(ML+col1W, bY, ML+col1W, bY+bH);
 
   const col1 = [
@@ -1222,22 +1280,23 @@ async function generarPDF() {
     ['Día:', `${diaNom} (${diaNum})`],
   ];
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(10);
   col1.forEach(([l,v],i) => {
     doc.setFont('helvetica','bold'); doc.setTextColor(...C.azulM);
-    doc.text(l, ML+2, bY+5+i*7);
+    doc.text(l, ML+3, bY+7+i*10);
     doc.setFont('helvetica','normal'); doc.setTextColor(...C.negro);
-    const vt = doc.splitTextToSize(v, col1W-20); 
-    doc.text(vt[0]||v, ML+22, bY+5+i*7);
+    const maxW = col1W - 28;
+    const vt = doc.splitTextToSize(v, maxW);
+    doc.text(vt[0]||v, ML+30, bY+7+i*10);
   });
   col2.forEach(([l,v],i) => {
     doc.setFont('helvetica','bold'); doc.setTextColor(...C.azulM);
-    doc.text(l, ML+col1W+3, bY+5+i*6);
+    doc.text(l, ML+col1W+3, bY+7+i*8);
     doc.setFont('helvetica','normal'); doc.setTextColor(...C.negro);
-    doc.text(v, ML+col1W+22, bY+5+i*6);
+    doc.text(v, ML+col1W+24, bY+7+i*8);
   });
 
-  y = bY + bH + 6;
+  y = bY + bH + 7;
   pie();
 
   if(tipoActual==='emp') {
@@ -1319,23 +1378,71 @@ async function generarPDF() {
   } else {
     titulo('Recepción de Materia Prima');
     campo('Responsables', getResp('mp').join(', ')||'—');
-    campo('MP con fechas cortas','',gsino('mp_fechas')); if(gsino('mp_fechas')==='si') tabla(['Materia prima','Fecha Venc.','Cantidad'],gtbl('t-mp-fechas'));
-    campo('Rotación cuarto de papa',gv('mp_rotacion_det'),gsino('mp_rotacion'));
-    campo('Sólidos totales',gv('mp_solidos_val'),gsino('mp_solidos'));
-    campo('Aceptación por compras',gv('mp_compras_det'),gsino('mp_compras'));
-    await fotos(document.querySelectorAll('.fgrid')[0]);
-    titulo('Registro por proveedor',2); tabla(['Proveedor','Referencia','% Aceptación','Sólidos','Obs'],gtbl('t-mp'));
+
+    titulo('Papa',2);
+    if(gsino('mp_papa')==='si'){
+      tabla(['Referencia','Proveedor','Aceptabilidad'],gtbl('t-mp-papa'));
+      const solPapa = gsino('mp_papa_solidos');
+      if(solPapa==='si') campo('Sólidos totales', gv('mp_papa_solidos_val'), 'si');
+      else if(solPapa==='no') campo('', '', 'no', 'No se hizo prueba de sólidos');
+      const obsPapa = gv('mp_papa_obs'); if(obsPapa) campo('Observaciones', obsPapa);
+      await fotos(document.querySelector('.fgrid[data-fid="f_mp_papa"]'));
+    } else campo('','','no','No llegó papa en este turno');
+
+    titulo('Queso',2);
+    if(gsino('mp_queso')==='si'){
+      tabla(['Proveedor','Peso (kg)','PNC'],gtbl('t-mp-queso'));
+      const obsQueso = gv('mp_queso_obs'); if(obsQueso) campo('Observaciones', obsQueso);
+      await fotos(document.querySelector('.fgrid[data-fid="f_mp_queso"]'));
+    } else campo('','','no','No llegó queso en este turno');
+
+    titulo('Plátano',2);
+    if(gsino('mp_platano')==='si'){
+      campo('Referencia', gv('mp_platano_ref'));
+      campo('Proveedor', gv('mp_platano_prov'));
+      const trans = gsino('mp_platano_trans');
+      if(trans==='si') campo('Condiciones de transporte','','si','Condiciones conformes');
+      else if(trans==='no') campo('Condiciones de transporte — No conforme', gv('mp_platano_trans_det'), 'no');
+      const obsPla = gv('mp_platano_obs'); if(obsPla) campo('Observaciones', obsPla);
+      await fotos(document.querySelector('.fgrid[data-fid="f_mp_platano"]'));
+    } else campo('','','no','No llegó plátano en este turno');
+
+    titulo('Láminas',2);
+    if(gsino('mp_laminas')==='si')
+      tabla(['Referencia','Proveedor','Lote','Observación'],gtbl('t-mp-laminas'));
+    else campo('','','no','No llegaron láminas en este turno');
+
+    titulo('Láminas no conformes en recepción',2);
+    if(gsino('mp_laminas_nc')==='si'){
+      tabla(['Referencia','Proveedor','Motivo'],gtbl('t-mp-laminas-nc'));
+      await fotos(document.querySelector('.fgrid[data-fid="f_mp_laminas_nc"]'));
+    } else campo('','','no','No se identificaron láminas no conformes');
+
+    titulo('Maíz',2);
+    if(gsino('mp_maiz')==='si'){
+      tabla(['Cuánto llegó (kg)','Lote','Proveedor','Observación'],gtbl('t-mp-maiz'));
+      await fotos(document.querySelector('.fgrid[data-fid="f_mp_maiz"]'));
+    } else campo('','','no','No llegó maíz en este turno');
+
+    titulo('Otras recepciones',2);
+    tabla(['Producto','Lote','Fecha vencimiento','Observación'],gtbl('t-mp-otras'));
+    await fotos(document.querySelector('.fgrid[data-fid="f_mp_otras"]'));
+
+    titulo('Reporte de fechas cortas en bodega',2);
+    tabla(['Materia prima','Lote','Fecha de vencimiento'],gtbl('t-mp-fechas'));
   }
 
   pie();
-  // Filename format: INFORME_EMPAQUE_S23D3_T1
+  // Filename: INFORME EMPAQUE T1 233.pdf  (semana+dia sin separador)
+  const sdCode = String(semana).padStart(2,'0') + diaNum;
+  const turnoVal = gv('turno')||'0';
   let fn;
   if(tipoActual==='emp') {
-    fn = `INFORME_EMPAQUE_S${semana}D${diaNum}_T${gv('turno')||'0'}.pdf`;
+    fn = `INFORME EMPAQUE T${turnoVal} ${sdCode}.pdf`;
   } else if(tipoActual==='pe') {
-    fn = `INFORME_PROCESOS_S${semana}D${diaNum}_T${gv('turno')||'0'}.pdf`;
+    fn = `INFORME PROCESOS T${turnoVal} ${sdCode}.pdf`;
   } else {
-    fn = `INFORME_MP_S${semana}D${diaNum}.pdf`;
+    fn = `INFORME MATERIA PRIMA ${sdCode}.pdf`;
   }
   doc.save(fn);
   toast('✓ PDF generado', 'verde');
