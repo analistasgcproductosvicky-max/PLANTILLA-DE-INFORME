@@ -27,6 +27,8 @@ const LABEL_SEC = {
 let tipoActual = '';
 let borradorId = '';
 let autoTimer  = null;
+let createdAt  = 0; // set once on form open, never updated
+let estadoActual = 'construccion'; // 'construccion' | 'finalizado'
 let presenciaRemota = {};
 let estadosRemotos  = {};
 let seccionAbierta  = '';
@@ -325,7 +327,7 @@ async function guardarBorrador() {
 
 /* ══════ RECOPILAR / RESTAURAR ══════ */
 function recopilarDatos() {
-  const d = { tipo: tipoActual };
+  const d = { tipo: tipoActual, createdAt: createdAt || Date.now(), estado: estadoActual || 'construccion' };
   // Campos data-campo
   document.querySelectorAll('[data-campo]').forEach(el => {
     d[el.dataset.campo] = el.type === 'checkbox' ? el.checked : el.value;
@@ -453,8 +455,40 @@ function restaurarDatos(d) {
 }
 
 /* ══════ MENÚ / NAVEGACIÓN ══════ */
-function abrirFormulario(tipo) {
-  tipoActual = tipo; borradorId = tipo + '_' + Date.now();
+async function abrirFormulario(tipo) {
+  // Check for existing active drafts of this type
+  if(window._fb) {
+    const lista = await window._fb.listar();
+    const LIMITE_MS = 12 * 60 * 60 * 1000;
+    const ahora = Date.now();
+    const vigentes = lista.filter(d => {
+      const tc = d.createdAt || d.ts || 0;
+      return d.tipo === tipo && (!tc || (ahora - tc) <= LIMITE_MS);
+    });
+    if(vigentes.length > 0) {
+      const d = vigentes[0]; // most recent
+      const tc = d.createdAt || d.ts || ahora;
+      const hace = Math.round((ahora - tc) / 60000);
+      const haceStr = hace < 60 ? `hace ${hace} min` : `hace ${Math.floor(hace/60)}h ${hace%60}m`;
+      const labels = { emp:'Empaque', pe:'Procesos', mp:'Materia Prima' };
+      const elegido = await preguntarBorrador(
+        labels[tipo],
+        d.fecha || '—',
+        d.turno  || '—',
+        haceStr
+      );
+      if(elegido === 'continuar') {
+        cargarBorrador(d.id);
+        return;
+      }
+      // 'nuevo': fall through to create fresh form
+    }
+  }
+  _abrirFormularioNuevo(tipo);
+}
+
+function _abrirFormularioNuevo(tipo) {
+  tipoActual = tipo; borradorId = tipo + '_' + Date.now(); createdAt = Date.now(); estadoActual = 'construccion';
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
   const tw = document.getElementById('tabs-wrap');
@@ -476,6 +510,31 @@ function abrirFormulario(tipo) {
     renderMP();
   }
   window.scrollTo(0,0);
+}
+
+function preguntarBorrador(tipoLabel, fecha, turno, haceStr) {
+  return new Promise(resolve => {
+    const m = document.createElement('div'); m.className = 'modal-overlay';
+    m.innerHTML = `<div class="modal-box" style="max-width:440px">
+      <div class="modal-titulo" style="font-size:16px;margin-bottom:14px">📋 Hay un borrador guardado</div>
+      <div style="background:var(--azul-cl);border-radius:var(--r);padding:12px 14px;margin-bottom:16px;font-size:13px;line-height:1.7">
+        <strong>Tipo:</strong> ${tipoLabel}<br>
+        <strong>Fecha:</strong> ${fecha} &nbsp;|&nbsp; <strong>Turno:</strong> ${turno}<br>
+        <strong>Guardado:</strong> ${haceStr}
+      </div>
+      <p style="font-size:13px;color:var(--txt-s);margin-bottom:16px">¿Desea continuar con este borrador o crear un informe nuevo?</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="modal-btn" style="flex:1;background:var(--azul)" onclick="this.closest('.modal-overlay').remove(); window._pregResolve('continuar')">
+          Continuar borrador
+        </button>
+        <button class="modal-btn" style="flex:1;background:var(--verde)" onclick="this.closest('.modal-overlay').remove(); window._pregResolve('nuevo')">
+          Crear nuevo
+        </button>
+      </div>
+    </div>`;
+    window._pregResolve = resolve;
+    document.body.appendChild(m);
+  });
 }
 
 function volverMenu() {
@@ -503,19 +562,21 @@ async function renderBorradores() {
   const labels = { emp:'📦 Empaque', pe:'⚙️ Procesos', mp:'🌿 Materia Prima' };
   const LIMITE_MS = 12 * 60 * 60 * 1000; // 12 horas
   const ahora = Date.now();
-  // Auto-eliminar borradores de más de 12 horas
+  // Auto-eliminar borradores de más de 12 horas desde CREACIÓN
   for(const d of lista) {
-    if(d.ts && (ahora - d.ts) > LIMITE_MS) {
+    const tCreacion = d.createdAt || d.ts || 0;
+    if(tCreacion && (ahora - tCreacion) > LIMITE_MS) {
       await window._fb.eliminar(d.id);
     }
   }
-  const vigentes = lista.filter(d => !d.ts || (ahora - d.ts) <= LIMITE_MS);
+  const vigentes = lista.filter(d => { const tc = d.createdAt || d.ts || 0; return !tc || (ahora - tc) <= LIMITE_MS; });
   if(!vigentes.length) {
     el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--txt-s);font-size:13px">No hay borradores guardados</div>';
     return;
   }
   el.innerHTML = vigentes.map(d => {
-    const msRestantes = LIMITE_MS - (ahora - (d.ts||ahora));
+    const tCreacion = d.createdAt || d.ts || ahora;
+    const msRestantes = LIMITE_MS - (ahora - tCreacion);
     const hRestantes = Math.max(0, Math.floor(msRestantes / 3600000));
     const mRestantes = Math.max(0, Math.floor((msRestantes % 3600000) / 60000));
     const colorTiempo = hRestantes < 2 ? 'var(--rojo)' : hRestantes < 4 ? 'var(--naranja)' : 'var(--txt-s)';
@@ -538,7 +599,7 @@ async function cargarBorrador(id) {
   toast('⏳ Cargando...');
   const d = window._fb ? await window._fb.cargar(id) : null;
   if(!d) { toast('⚠️ No se pudo cargar','rojo'); return; }
-  tipoActual = d.tipo; borradorId = id;
+  tipoActual = d.tipo; borradorId = id; createdAt = d.createdAt || d.ts || Date.now(); estadoActual = d.estado || 'construccion';
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
   const tw = document.getElementById('tabs-wrap');
@@ -558,6 +619,7 @@ async function cargarBorrador(id) {
   setTimeout(() => { restaurarDatos(d); if(d.tipo==='pe') setTimeout(renderTabs,200); }, 300);
   window.scrollTo(0,0);
   toast('✓ Borrador cargado','verde');
+  setTimeout(actualizarBtnFinalizar, 400);
 }
 
 async function eliminarBorrador(id, e) {
@@ -999,17 +1061,7 @@ function renderMP() {
       ${mkResp('mp','Responsable(s) Materia Prima')}
 
       ${preg(1,'¿Llegó papa?','mp_papa', `
-        ${tbl('t-mp-papa',['Referencia','Proveedor','Aceptabilidad'],2)}
-        <div class="pregunta" style="margin-top:10px;border:none;padding:0">
-          <div class="preg-label" style="margin-bottom:6px">¿Se hizo prueba de sólidos?</div>
-          <div class="sino-row" data-key="mp_papa_solidos">
-            <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
-            <button class="rbtn" onclick="siNo(this,'no')">No</button>
-          </div>
-          <div class="cond-si" style="display:none">
-            <input class="rinp" type="text" data-campo="mp_papa_solidos_val" placeholder="¿Cuánto dio % sólidos?" oninput="autoSave()">
-          </div>
-        </div>
+        ${tbl('t-mp-papa',['Referencia','Proveedor','Aceptabilidad','Prueba sólidos (S/N)','% Sólidos'],2)}
         <textarea class="rdet" style="margin-top:8px" data-campo="mp_papa_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
         ${foto('Fotos de recepción de papa','Adjuntar fotos','f_mp_papa')}
       `)}
@@ -1382,9 +1434,6 @@ async function generarPDF() {
     titulo('Papa',2);
     if(gsino('mp_papa')==='si'){
       tabla(['Referencia','Proveedor','Aceptabilidad'],gtbl('t-mp-papa'));
-      const solPapa = gsino('mp_papa_solidos');
-      if(solPapa==='si') campo('Sólidos totales', gv('mp_papa_solidos_val'), 'si');
-      else if(solPapa==='no') campo('', '', 'no', 'No se hizo prueba de sólidos');
       const obsPapa = gv('mp_papa_obs'); if(obsPapa) campo('Observaciones', obsPapa);
       await fotos(document.querySelector('.fgrid[data-fid="f_mp_papa"]'));
     } else campo('','','no','No llegó papa en este turno');
@@ -1444,10 +1493,169 @@ async function generarPDF() {
   } else {
     fn = `INFORME MATERIA PRIMA ${sdCode}.pdf`;
   }
+  // ── MODO CONSOLIDADO: acumular como ArrayBuffer, fusionar con pdf-lib ──
+  if(window._pdfConsolidado) {
+    const bytes = doc.output('arraybuffer');
+    if(!window._pdfDocAcum) {
+      // Primera llamada (Empaque): guardar bytes
+      window._pdfDocAcum = bytes;
+    } else {
+      // Segunda llamada (Procesos): fusionar con pdf-lib y descargar
+      const { PDFDocument } = window.PDFLib;
+      try {
+        const merged = await PDFDocument.create();
+        // Portada consolidada — primera página del PDF fusionado
+        const empPdf = await PDFDocument.load(window._pdfDocAcum);
+        const pePdf  = await PDFDocument.load(bytes);
+        // Copiar todas las páginas de Empaque
+        const empPages = await merged.copyPages(empPdf, empPdf.getPageIndices());
+        empPages.forEach(p => merged.addPage(p));
+        // Copiar todas las páginas de Procesos
+        const pePages = await merged.copyPages(pePdf, pePdf.getPageIndices());
+        pePages.forEach(p => merged.addPage(p));
+        // Descargar
+        const mergedBytes = await merged.save();
+        const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const sdCodeC = String(semana).padStart(2,'0') + diaNum;
+        const turnoC  = gv('turno')||'0';
+        a.href = url;
+        a.download = `INFORME CONSOLIDADO T${turnoC} ${sdCodeC}.pdf`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast('✓ PDF Consolidado generado', 'verde');
+      } catch(e) {
+        console.error('pdf-lib merge error:', e);
+        toast('⚠️ Error al fusionar PDFs', 'rojo');
+      }
+      window._pdfDocAcum = null;
+      window._pdfConsolidado = false;
+    }
+    return;
+  }
   doc.save(fn);
   toast('✓ PDF generado', 'verde');
 }
 
+/* ══════ FINALIZAR INFORME ══════ */
+function actualizarBtnFinalizar() {
+  const btn = document.getElementById('btn-finalizar');
+  if(!btn) return;
+  if(estadoActual === 'finalizado') {
+    btn.textContent = '✓ Finalizado';
+    btn.classList.add('finalizado');
+    btn.disabled = true;
+  } else {
+    btn.textContent = '✔ Finalizar';
+    btn.classList.remove('finalizado');
+    btn.disabled = false;
+  }
+}
+
+async function finalizarInforme() {
+  const err = validar();
+  if(err.length) { mostrarModal(err); return; }
+  if(!confirm('¿Marcar este informe como FINALIZADO? Esta acción confirma que el área está completa para el turno.')) return;
+  estadoActual = 'finalizado';
+  await guardarNube();
+  actualizarBtnFinalizar();
+  toast('✓ Informe finalizado', 'verde');
+  renderTurnos(); // refresh turno status in menu (if visible)
+}
+
+/* ══════ TURNOS: estado consolidado ══════ */
+async function renderTurnos() {
+  const el = document.getElementById('turnos-list');
+  if(!el) return;
+  if(!window._fb) { el.innerHTML='<div style="text-align:center;padding:12px;color:var(--txt-s);font-size:13px">Conectando...</div>'; return; }
+  const lista = await window._fb.listar();
+  const LIMITE_MS = 12*60*60*1000;
+  const ahora = Date.now();
+  // Group by fecha+turno, only vigentes
+  const grupos = {};
+  lista.forEach(d => {
+    const tc = d.createdAt || d.ts || 0;
+    if(tc && (ahora-tc) > LIMITE_MS) return;
+    if(d.tipo !== 'emp' && d.tipo !== 'pe') return; // only emp+pe
+    const key = (d.fecha||'sin-fecha') + '_T' + (d.turno||'?');
+    if(!grupos[key]) grupos[key] = { fecha: d.fecha||'—', turno: d.turno||'—', emp:null, pe:null };
+    grupos[key][d.tipo] = d;
+  });
+  const keys = Object.keys(grupos).sort().reverse();
+  if(!keys.length) {
+    el.innerHTML='<div style="text-align:center;padding:12px;color:var(--txt-s);font-size:12px">No hay informes activos del turno</div>';
+    return;
+  }
+  el.innerHTML = keys.map(key => {
+    const g = grupos[key];
+    const empE = g.emp?.estado || 'pendiente';
+    const peE  = g.pe?.estado  || 'pendiente';
+    const ambosListo = empE === 'finalizado' && peE === 'finalizado';
+    function badge(tipo, estado) {
+      const icon = tipo==='emp'?'📦':'⚙️';
+      const label = tipo==='emp'?'Empaque':'Procesos';
+      const cls = estado==='finalizado'?'finalizado':estado==='construccion'?'construccion':'pendiente';
+      const dot = estado==='finalizado'?'dot-fin':estado==='construccion'?'dot-const':'dot-pend';
+      const txt = estado==='finalizado'?'Finalizado':estado==='construccion'?'En construcción':'Pendiente';
+      return `<div class="area-badge ${cls}"><span class="badge-dot ${dot}"></span>${icon} ${label}: ${txt}</div>`;
+    }
+    return `<div class="turno-card">
+      <div class="turno-header">
+        <span class="turno-id">📅 ${g.fecha} — Turno ${g.turno}</span>
+        <button class="btn-consolidar" ${ambosListo?'':'disabled'}
+          onclick="generarPDFConsolidado('${g.emp?.id||''}','${g.pe?.id||''}')">
+          ${ambosListo?'📄 Generar PDF Consolidado':'⏳ Esperando áreas...'}
+        </button>
+      </div>
+      <div class="turno-areas">
+        ${badge('emp', empE)}
+        ${badge('pe', peE)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function generarPDFConsolidado(empId, peId) {
+  if(!empId || !peId) { toast('Faltan datos de algún informe','rojo'); return; }
+  toast('⏳ Cargando informes...');
+  const dEmp = empId ? await window._fb.cargar(empId) : null;
+  const dPe  = peId  ? await window._fb.cargar(peId)  : null;
+  if(!dEmp || !dPe) { toast('No se pudieron cargar los informes','rojo'); return; }
+  toast('⏳ Generando PDF consolidado...');
+  // Save current state
+  const tipoOrig = tipoActual, bidOrig = borradorId, estadoOrig = estadoActual;
+  const origHTML = document.getElementById('form-content').innerHTML;
+  // Generate Empaque PDF pages
+  tipoActual = 'emp'; borradorId = empId; estadoActual = 'finalizado';
+  renderEmpaque();
+  await new Promise(r => setTimeout(r, 150));
+  restaurarDatos(dEmp);
+  await new Promise(r => setTimeout(r, 150));
+  // Generate Procesos PDF pages
+  // We call generarPDF twice but intercept save to combine
+  // Actually: use a flag to tell generarPDF to return doc instead of saving
+  window._pdfConsolidado = true;
+  window._pdfDocAcum = null;
+  await generarPDF(); // generates emp pages, stores in window._pdfDocAcum
+  tipoActual = 'pe'; borradorId = peId;
+  renderPE(); renderTabs();
+  await new Promise(r => setTimeout(r, 150));
+  restaurarDatos(dPe);
+  await new Promise(r => setTimeout(r, 200));
+  await generarPDF(); // appends pe pages
+  window._pdfConsolidado = false;
+  // Restore
+  tipoActual = tipoOrig; borradorId = bidOrig; estadoActual = estadoOrig;
+  document.getElementById('form-content').innerHTML = origHTML;
+}
+
+
 /* ══════ INIT ══════ */
-if(window._fbReady) renderBorradores();
-else document.addEventListener('fbReady', renderBorradores, {once:true});
+function initMenu() {
+  renderBorradores();
+  renderTurnos();
+}
+if(window._fbReady) initMenu();
+else document.addEventListener('fbReady', initMenu, {once:true});

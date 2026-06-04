@@ -6,6 +6,7 @@
 <title>Informes de Calidad — Productos Vicky S.A.S.</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 
 <!-- Firebase (módulo separado, expone window._fb) -->
 <script type="module">
@@ -239,6 +240,24 @@ table.reg td input:focus,table.reg td select:focus{outline:none;background:#e8f2
 .modal-btn{padding:8px 18px;border-radius:8px;background:var(--azul);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
 
 /* ── TOAST ── */
+.turno-section{width:100%;max-width:820px;margin-top:16px}
+.turno-titulo{font-size:13px;font-weight:600;color:var(--azul);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.turno-card{background:var(--blanco);border:1.5px solid var(--borde);border-radius:var(--rlg);padding:16px 18px;margin-bottom:10px;transition:all .2s}
+.turno-card:hover{border-color:var(--azul-b)}
+.turno-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.turno-id{font-size:14px;font-weight:600;color:var(--azul)}
+.turno-areas{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.area-badge{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--borde);background:var(--gris);color:var(--txt-s)}
+.area-badge.finalizado{background:var(--verde-cl);border-color:var(--verde-b);color:var(--verde)}
+.area-badge.construccion{background:var(--naranja-cl);border-color:#f0c060;color:var(--naranja)}
+.area-badge.pendiente{background:var(--gris);border-color:var(--borde);color:var(--txt-s)}
+.badge-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-fin{background:var(--verde)} .dot-const{background:var(--naranja);animation:pulso .9s infinite} .dot-pend{background:#aaa}
+.btn-consolidar{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;background:var(--azul);color:white;transition:all .15s}
+.btn-consolidar:disabled{background:var(--gris-m);color:var(--txt-s);cursor:not-allowed}
+.btn-consolidar:not(:disabled):hover{background:var(--azul-m)}
+.hbtn-fin{background:#c27c0e;color:white} .hbtn-fin:hover{background:#a8680b}
+.hbtn-fin.finalizado{background:var(--verde);cursor:default}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--azul);color:white;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.verde{background:var(--verde)}
@@ -277,6 +296,10 @@ table.reg td input:focus,table.reg td select:focus{outline:none;background:#e8f2
   </div>
   <button class="borradores-btn" onclick="toggleBorradores()">📂 Ver borradores guardados</button>
   <div class="borradores-list" id="borradores-list"></div>
+  <div class="turno-section">
+    <div class="turno-titulo">📊 Estado por turno &amp; PDF consolidado</div>
+    <div id="turnos-list"><div style="text-align:center;padding:14px;color:var(--txt-s);font-size:13px">⏳ Cargando...</div></div>
+  </div>
 </div>
 
 <!-- FORMULARIO -->
@@ -293,6 +316,7 @@ table.reg td input:focus,table.reg td select:focus{outline:none;background:#e8f2
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
         <button class="hbtn hbtn-o" onclick="guardarBorrador()">💾 Guardar</button>
+        <button class="hbtn hbtn-fin" id="btn-finalizar" onclick="finalizarInforme()">✔ Finalizar</button>
         <button class="hbtn hbtn-v" onclick="generarPDF()">📄 PDF</button>
       </div>
     </div>
