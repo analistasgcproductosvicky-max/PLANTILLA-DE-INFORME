@@ -1153,7 +1153,8 @@ async function generarPDF() {
       let imgW = fw, imgH = fw/ratio;
       if(imgH > 85) { imgH = 85; imgW = imgH * ratio; }
       if(imgW > fw) { imgW = fw; imgH = imgW / ratio; }
-      const capH = img.nextElementSibling?.value ? 8 : 0;
+      const capInp = img.closest('.fitem')?.querySelector('.fcap-inp');
+      const capH = capInp?.value ? 8 : 0;
       const totalH = imgH + capH;
       if(col === 0) { check(totalH+4); rowY = y; rowH = totalH; }
       rowH = Math.max(rowH, totalH);
@@ -1162,10 +1163,10 @@ async function generarPDF() {
         const fmt = img.src.startsWith('data:image/png')?'PNG':'JPEG';
         doc.addImage(img.src,fmt,x,rowY,imgW,imgH,'','MEDIUM');
         doc.setDrawColor(...C.grisM); doc.rect(x,rowY,imgW,imgH,'S');
-        const cap = img.nextElementSibling?.value||'';
+        const cap = img.closest('.fitem')?.querySelector('.fcap-inp')?.value||'';
         if(cap) {
           doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...C.suave);
-          doc.text(cap, x+imgW/2, rowY+imgH+4, {align:'center', maxWidth:imgW});
+          doc.text(cap, x+imgW/2, rowY+imgH+4.5, {align:'center', maxWidth:imgW});
         }
       } catch(e){}
       col++;
@@ -1259,8 +1260,16 @@ async function generarPDF() {
       await fotos(gfgrid('empaque','emp_sticker'));
     } else campo('','','no','No se realizó liberación de sticker');
     titulo('Rayos X — RX1 y RX2',2);
-    campo('RX1 — fuera de operación', gsino('emp_rx1_op')==='no'?gv('emp_rx1_motivo'):'', gsino('emp_rx1_op'), 'RX1 operando correctamente');
-    campo('RX2 — fuera de operación', gsino('emp_rx2_op')==='no'?gv('emp_rx2_motivo'):'', gsino('emp_rx2_op'), 'RX2 operando correctamente');
+    // RX1
+    if(gsino('emp_rx1_op')==='no')
+      campo('RX1 — fuera de operación', gv('emp_rx1_motivo'), 'no');
+    else if(gsino('emp_rx1_op')==='si')
+      campo('RX1 — operando', '', 'si', 'RX1 operando correctamente');
+    // RX2
+    if(gsino('emp_rx2_op')==='no')
+      campo('RX2 — fuera de operación', gv('emp_rx2_motivo'), 'no');
+    else if(gsino('emp_rx2_op')==='si')
+      campo('RX2 — operando', '', 'si', 'RX2 operando correctamente');
     tabla(['Equipo','Referencia','Lote'],gtbl('t-emp-rx'));
     titulo('Desviaciones de peso',2); if(gsino('emp_peso')==='si') tabla(['Máquina','Referencia','Desviación','Acción'],gtbl('t-emp-peso')); else campo('','','no','No hubo desviaciones de peso en el turno');
     const otras = gv('emp_otras'); if(otras){ titulo('Otras novedades',2); campo('Novedades',otras); }
