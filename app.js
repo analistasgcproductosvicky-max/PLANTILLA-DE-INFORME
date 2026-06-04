@@ -1066,30 +1066,46 @@ async function generarPDF() {
     }
   }
 
-  function campo(label, val, sino=null) {
-    if(sino==='no' && !val?.trim()) {
-      // Solo mostrar label + NO en una línea compacta
-      check(6);
-      doc.setFillColor(...C.rojoCl); doc.rect(ML,y,CW,5.5,'F');
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C.rojo);
-      doc.text(label, ML+2, y+3.8);
-      doc.setFont('helvetica','bold');
-      doc.text('[NO]', PW-MR-2, y+3.8, {align:'right'});
-      y+=6; return;
+  // campo(label, val, sino, noMsg)
+  // noMsg: texto descriptivo cuando la respuesta es NO (ej. "No se presentaron novedades")
+  function campo(label, val, sino=null, noMsg='') {
+    if(sino==='no') {
+      const txt = noMsg || label;
+      if(!val?.trim()) {
+        // Solo texto descriptivo negativo, sin "[NO]"
+        check(6);
+        doc.setFillColor(...C.rojoCl); doc.rect(ML,y,CW,5.5,'F');
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C.rojo);
+        doc.text(txt, ML+2, y+3.8);
+        y+=6; return;
+      } else {
+        // Hay motivo — mostrar label en rojo + motivo debajo
+        check(7);
+        doc.setFillColor(...C.rojoCl); doc.rect(ML,y,CW,5.5,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...C.rojo);
+        doc.text(label, ML+2, y+3.8);
+        y+=6;
+        const lines = doc.splitTextToSize(val, CW-5);
+        const h = lines.length*4.2+3;
+        check(h);
+        doc.setFillColor(252,252,252); doc.rect(ML,y,CW,h,'F');
+        doc.setDrawColor(...C.rojoCl); doc.rect(ML,y,CW,h,'S');
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C.negro);
+        doc.text(lines, ML+2, y+3.5); y+=h+2;
+        return;
+      }
     }
     if(!val?.trim() && !sino) return;
     check(7);
     doc.setFillColor(...C.gris); doc.rect(ML,y,CW,5.5,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...C.azulM);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...C.azulM);
     doc.text(label, ML+2, y+3.8);
-    if(sino) {
-      const color = sino==='si'?C.verde:C.rojo;
-      const lbl = sino==='si'?'[SI]':'[NO]';
-      doc.setTextColor(...color); doc.setFont('helvetica','bold');
-      doc.text(lbl, PW-MR-2, y+3.8, {align:'right'});
+    if(sino==='si') {
+      doc.setTextColor(...C.verde); doc.setFont('helvetica','bold');
+      doc.text('[SI]', PW-MR-2, y+3.8, {align:'right'});
     }
     y+=6;
-    if(val?.trim() && sino!=='no') {
+    if(val?.trim()) {
       const lines = doc.splitTextToSize(val, CW-5);
       const h = lines.length*4.2+3;
       check(h);
@@ -1226,27 +1242,27 @@ async function generarPDF() {
   if(tipoActual==='emp') {
     titulo('Empaque');
     campo('Responsables', getResp('empaque').join(', ')||'—');
-    campo('Máquinas lavadas', gv('emp_lavado_cuales'), gsino('emp_lavado'));
+    campo('Máquinas lavadas en el turno', gv('emp_lavado_cuales'), gsino('emp_lavado'), 'No se lavaron máquinas en el turno');
     await fotos(gfgrid('empaque','emp_lavado'));
-    titulo('Máquinas fuera de servicio',2); if(gsino('emp_fs')==='si') tabla(['Máquina','Motivo','Desde cuándo'],gtbl('t-emp-fs')); else campo('Máquinas fuera de servicio','',gsino('emp_fs'));
-    titulo('Exportaciones',2); if(gsino('emp_exp')==='si'){ tabla(['Referencia','Lote','Destino'],gtbl('t-emp-exp')); await fotos(gfgrid('empaque','emp_exp')); } else campo('Exportaciones','',gsino('emp_exp'));
-    titulo('Producto en tolvas >2 días',2); if(gsino('emp_tolvas')==='si') tabla(['Producto','Tolva','Fecha producción','Días almacenados'],gtbl('t-emp-tolvas')); else campo('Producto en tolvas','',gsino('emp_tolvas'));
-    titulo('Producto no conforme (PNC)',2); if(gsino('emp_pnc')==='si'){ tabla(['Producto','Área','Causa','Cantidad'],gtbl('t-emp-pnc')); await fotos(gfgrid('empaque','emp_pnc')); } else campo('PNC','',gsino('emp_pnc'));
-    titulo('Láminas no conformes',2); if(gsino('emp_laminas')==='si'){ tabla(['Referencia','Tipo de NC','Cantidad'],gtbl('t-emp-laminas')); await fotos(gfgrid('empaque','emp_laminas')); } else campo('Láminas NC','',gsino('emp_laminas'));
-    campo('Novedades fechas de empaque — Acción tomada', gv('emp_fechas_accion'), gsino('emp_fechas'));
+    titulo('Máquinas fuera de servicio',2); if(gsino('emp_fs')==='si') tabla(['Máquina','Motivo','Desde cuándo'],gtbl('t-emp-fs')); else campo('','','no','No hay máquinas fuera de servicio');
+    titulo('Exportaciones',2); if(gsino('emp_exp')==='si'){ tabla(['Referencia','Lote','Destino'],gtbl('t-emp-exp')); await fotos(gfgrid('empaque','emp_exp')); } else campo('','','no','No salieron exportaciones durante el turno');
+    titulo('Producto en tolvas >2 días',2); if(gsino('emp_tolvas')==='si') tabla(['Producto','Tolva','Fecha producción','Días almacenados'],gtbl('t-emp-tolvas')); else campo('','','no','No hay producto con más de 2 días en tolvas');
+    titulo('Producto no conforme (PNC)',2); if(gsino('emp_pnc')==='si'){ tabla(['Producto','Área','Causa','Cantidad'],gtbl('t-emp-pnc')); await fotos(gfgrid('empaque','emp_pnc')); } else campo('','','no','No se generó producto no conforme');
+    titulo('Láminas no conformes',2); if(gsino('emp_laminas')==='si'){ tabla(['Referencia','Tipo de NC','Cantidad'],gtbl('t-emp-laminas')); await fotos(gfgrid('empaque','emp_laminas')); } else campo('','','no','No salieron láminas no conformes');
+    campo('Novedades con fechas de empaque — acción tomada', gv('emp_fechas_accion'), gsino('emp_fechas'), 'No se presentaron novedades con fechas de empaque');
     if(gsino('emp_fechas')==='si') await fotos(gfgrid('empaque','emp_fechas'));
-    campo('Cambio / Autorización especial', gv('emp_cambios_cual'), gsino('emp_cambios'));
+    campo('Cambio / Autorización especial de producto', gv('emp_cambios_cual'), gsino('emp_cambios'), 'No hubo cambios ni autorizaciones especiales');
     if(gsino('emp_cambios')==='si') await fotos(gfgrid('empaque','emp_cambios'));
     titulo('Liberación de sticker',2);
     if(gsino('emp_sticker')==='si'){
       tabla(['Referencia','Lote','Cliente','Motivo'],gtbl('t-emp-sticker'));
       await fotos(gfgrid('empaque','emp_sticker'));
-    } else campo('Liberación sticker','',gsino('emp_sticker'));
+    } else campo('','','no','No se realizó liberación de sticker');
     titulo('Rayos X — RX1 y RX2',2);
-    campo('RX1 operando', gsino('emp_rx1_op')==='no'?gv('emp_rx1_motivo'):'', gsino('emp_rx1_op'));
-    campo('RX2 operando', gsino('emp_rx2_op')==='no'?gv('emp_rx2_motivo'):'', gsino('emp_rx2_op'));
+    campo('RX1 — fuera de operación', gsino('emp_rx1_op')==='no'?gv('emp_rx1_motivo'):'', gsino('emp_rx1_op'), 'RX1 operando correctamente');
+    campo('RX2 — fuera de operación', gsino('emp_rx2_op')==='no'?gv('emp_rx2_motivo'):'', gsino('emp_rx2_op'), 'RX2 operando correctamente');
     tabla(['Equipo','Referencia','Lote'],gtbl('t-emp-rx'));
-    titulo('Desviaciones de peso',2); if(gsino('emp_peso')==='si') tabla(['Máquina','Referencia','Desviación','Acción'],gtbl('t-emp-peso')); else campo('Desviaciones de peso','',gsino('emp_peso'));
+    titulo('Desviaciones de peso',2); if(gsino('emp_peso')==='si') tabla(['Máquina','Referencia','Desviación','Acción'],gtbl('t-emp-peso')); else campo('','','no','No hubo desviaciones de peso en el turno');
     const otras = gv('emp_otras'); if(otras){ titulo('Otras novedades',2); campo('Novedades',otras); }
     await fotos(document.querySelector('.fgrid[data-fid="emp_otras_fotos"]'));
 
