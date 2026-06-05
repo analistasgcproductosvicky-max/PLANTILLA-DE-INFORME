@@ -15,7 +15,8 @@ const PERSONAS_AREA = {
   tortillas: PERSONAS, trocillo: PERSONAS,
   daf: PERSONAS, pc4: PERSONAS, pc6: PERSONAS,
   pellet: PERSONAS, mp: PERSONAS,
-  pe_general: PERSONAS
+  pe_general: PERSONAS,
+  emp_general: PERSONAS
 };
 
 const SECCIONES_PE = ['extruido','rosquilla','tortillas','trocillo','daf','pc4','pc6','pellet'];
@@ -778,6 +779,15 @@ function renderEmpaque() {
       <select class="dato-inp" data-campo="turno" onchange="autoSave()">
         <option>1</option><option>2</option><option>3</option>
       </select>
+    </div>
+  </div>
+
+  <div class="seccion" style="margin-bottom:12px">
+    <div style="background:var(--azul);border-radius:var(--rlg);padding:14px 18px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:white;white-space:nowrap;padding-top:3px">👷 Responsable de Empaque:</span>
+      <div style="flex:1">
+        ${mkResp('emp_general','Responsable de Empaque')}
+      </div>
     </div>
   </div>
 
@@ -2057,10 +2067,215 @@ async function generarPDFConsolidado(empId, peId) {
 }
 
 
+/* ══════ ADMINISTRACIÓN ══════ */
+const ADMIN_PIN = '1234'; // Cambiar este PIN en el código si desea mayor seguridad
+
+let _personasLocal = null; // se carga desde Firebase al iniciar
+
+// Cargar personas personalizadas desde Firebase (si existen)
+async function cargarPersonasConfig() {
+  if(!window._fb) return;
+  try {
+    const d = await window._fb.cargar('__config__personas__');
+    if(d && d.lista && Array.isArray(d.lista) && d.lista.length > 0) {
+      _personasLocal = d.lista;
+      // Update all PERSONAS_AREA entries
+      Object.keys(PERSONAS_AREA).forEach(k => { PERSONAS_AREA[k] = _personasLocal; });
+      console.log('Personas cargadas desde config:', _personasLocal.length);
+    }
+  } catch(e) {}
+}
+
+async function guardarPersonasConfig(lista) {
+  if(!window._fb) { toast('Sin conexión','rojo'); return false; }
+  try {
+    await window._fb.guardar('__config__personas__', { lista, tipo: '__config__', ts: Date.now() });
+    _personasLocal = lista;
+    Object.keys(PERSONAS_AREA).forEach(k => { PERSONAS_AREA[k] = lista; });
+    return true;
+  } catch(e) { console.error(e); return false; }
+}
+
+function abrirAdmin() {
+  // Show PIN prompt
+  const overlay = document.createElement('div');
+  overlay.className = 'admin-overlay';
+  overlay.id = 'admin-overlay';
+  overlay.innerHTML = `<div class="admin-box">
+    <div class="admin-header">
+      <h3>⚙️ Administración</h3>
+      <button class="admin-close" onclick="document.getElementById('admin-overlay').remove()">×</button>
+    </div>
+    <div class="pin-box">
+      <h3>Acceso restringido</h3>
+      <p>Ingrese el PIN de administrador para continuar</p>
+      <input class="pin-input" id="admin-pin-input" type="password" maxlength="6" placeholder="····"
+        oninput="this.value=this.value.replace(/[^0-9]/,'')"
+        onkeydown="if(event.key==='Enter') verificarPin()">
+      <div class="pin-error" id="pin-error">PIN incorrecto. Intente de nuevo.</div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="modal-btn" onclick="verificarPin()" style="background:var(--azul)">Ingresar</button>
+        <button class="modal-btn" onclick="document.getElementById('admin-overlay').remove()" style="background:var(--gris-m);color:var(--txt)">Cancelar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('admin-pin-input')?.focus(), 100);
+}
+
+function verificarPin() {
+  const pin = document.getElementById('admin-pin-input')?.value;
+  if(pin === (window._adminPinActual || ADMIN_PIN)) {
+    document.getElementById('admin-overlay').remove();
+    mostrarPanelAdmin();
+  } else {
+    const err = document.getElementById('pin-error');
+    if(err) { err.style.display = 'block'; setTimeout(()=>err.style.display='none',2000); }
+    document.getElementById('admin-pin-input').value = '';
+  }
+}
+
+function mostrarPanelAdmin() {
+  const lista = _personasLocal || [...PERSONAS];
+  const overlay = document.createElement('div');
+  overlay.className = 'admin-overlay';
+  overlay.id = 'admin-panel';
+
+  function renderLista(arr) {
+    return arr.map((p,i) => `<div class="persona-item" id="p-item-${i}">
+      <span class="persona-name">${p}</span>
+      <button class="btn-del-persona" onclick="eliminarPersona(${i})" title="Eliminar">×</button>
+    </div>`).join('') || '<div style="color:var(--txt-s);font-size:13px;padding:8px">No hay responsables configurados</div>';
+  }
+
+  overlay.innerHTML = `<div class="admin-box">
+    <div class="admin-header">
+      <h3>⚙️ Administración — Responsables</h3>
+      <button class="admin-close" onclick="document.getElementById('admin-panel').remove()">×</button>
+    </div>
+    <div class="admin-body">
+      <div class="admin-section">
+        <div class="admin-section-title">Lista de responsables</div>
+        <div id="personas-lista">${renderLista(lista)}</div>
+        <div class="admin-add-row">
+          <input type="text" id="nueva-persona-inp" placeholder="Nombre completo del responsable"
+            onkeydown="if(event.key==='Enter') agregarPersonaAdmin()">
+          <button class="btn-admin-add" onclick="agregarPersonaAdmin()">+ Agregar</button>
+        </div>
+      </div>
+      <div class="admin-section">
+        <div class="admin-section-title">Cambiar PIN de administrador</div>
+        <div class="grid2">
+          <div><label style="font-size:12px;color:var(--txt-s)">PIN actual</label>
+            <input type="password" id="pin-actual" class="rinp" placeholder="PIN actual" maxlength="6"></div>
+          <div><label style="font-size:12px;color:var(--txt-s)">PIN nuevo</label>
+            <input type="password" id="pin-nuevo" class="rinp" placeholder="Nuevo PIN (4-6 dígitos)" maxlength="6"></div>
+        </div>
+        <button class="btn-admin-add" style="margin-top:8px" onclick="cambiarPin()">Cambiar PIN</button>
+        <div id="pin-change-msg" style="font-size:12px;margin-top:6px;display:none"></div>
+      </div>
+    </div>
+    <div class="admin-footer">
+      <button class="modal-btn" style="background:var(--gris-m);color:var(--txt)"
+        onclick="document.getElementById('admin-panel').remove()">Cancelar</button>
+      <button class="btn-admin-save" onclick="guardarCambiosAdmin()">💾 Guardar cambios</button>
+    </div>
+  </div>`;
+
+  // Store working copy
+  overlay._lista = [...lista];
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('nueva-persona-inp')?.focus(), 100);
+}
+
+function getAdminLista() {
+  const panel = document.getElementById('admin-panel');
+  return panel ? panel._lista : [];
+}
+
+function renderAdminLista() {
+  const lista = getAdminLista();
+  document.getElementById('personas-lista').innerHTML =
+    lista.map((p,i) => `<div class="persona-item">
+      <span class="persona-name">${p}</span>
+      <button class="btn-del-persona" onclick="eliminarPersona(${i})">×</button>
+    </div>`).join('') ||
+    '<div style="color:var(--txt-s);font-size:13px;padding:8px">No hay responsables configurados</div>';
+}
+
+function agregarPersonaAdmin() {
+  const inp = document.getElementById('nueva-persona-inp');
+  const nombre = inp?.value?.trim();
+  if(!nombre) return;
+  const lista = getAdminLista();
+  if(lista.includes(nombre)) { toast('Ya existe ese responsable','rojo'); return; }
+  lista.push(nombre);
+  document.getElementById('admin-panel')._lista = lista;
+  renderAdminLista();
+  inp.value = '';
+  inp.focus();
+}
+
+function eliminarPersona(idx) {
+  const lista = getAdminLista();
+  lista.splice(idx, 1);
+  document.getElementById('admin-panel')._lista = lista;
+  renderAdminLista();
+}
+
+function cambiarPin() {
+  const actual = document.getElementById('pin-actual')?.value;
+  const nuevo  = document.getElementById('pin-nuevo')?.value;
+  const msg    = document.getElementById('pin-change-msg');
+  if(actual !== ADMIN_PIN) {
+    msg.textContent = '❌ PIN actual incorrecto'; msg.style.color='var(--rojo)'; msg.style.display='block';
+    return;
+  }
+  if(!nuevo || nuevo.length < 4) {
+    msg.textContent = '❌ El PIN nuevo debe tener al menos 4 dígitos'; msg.style.color='var(--rojo)'; msg.style.display='block';
+    return;
+  }
+  // Guardar nuevo PIN en Firebase
+  if(window._fb) {
+    window._fb.guardar('__config__pin__', { pin: nuevo, tipo:'__config__', ts: Date.now() });
+  }
+  // Update in memory (note: ADMIN_PIN is const - we use a mutable approach via config)
+  window._adminPinActual = nuevo;
+  msg.textContent = '✓ PIN cambiado correctamente'; msg.style.color='var(--verde)'; msg.style.display='block';
+  document.getElementById('pin-actual').value = '';
+  document.getElementById('pin-nuevo').value = '';
+}
+
+async function guardarCambiosAdmin() {
+  const lista = getAdminLista();
+  if(lista.length === 0) { toast('Agrega al menos un responsable','rojo'); return; }
+  const btn = document.querySelector('.btn-admin-save');
+  if(btn) btn.textContent = '⏳ Guardando...';
+  const ok = await guardarPersonasConfig(lista);
+  if(ok) {
+    toast('✓ Responsables actualizados en la nube','verde');
+    document.getElementById('admin-panel').remove();
+  } else {
+    toast('⚠️ Error al guardar','rojo');
+    if(btn) btn.textContent = '💾 Guardar cambios';
+  }
+}
+
 /* ══════ INIT ══════ */
-function initMenu() {
+async function initMenu() {
+  await cargarPersonasConfig();
+  await cargarPinConfig();
   renderBorradores();
   renderTurnos();
 }
+
+async function cargarPinConfig() {
+  if(!window._fb) return;
+  try {
+    const d = await window._fb.cargar('__config__pin__');
+    if(d && d.pin) window._adminPinActual = d.pin;
+  } catch(e) {}
+}
+
 if(window._fbReady) initMenu();
 else document.addEventListener('fbReady', initMenu, {once:true});

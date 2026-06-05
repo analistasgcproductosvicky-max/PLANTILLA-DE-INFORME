@@ -258,6 +258,31 @@ table.reg td input:focus,table.reg td select:focus{outline:none;background:#e8f2
 .btn-consolidar:not(:disabled):hover{background:var(--azul-m)}
 .hbtn-fin{background:#c27c0e;color:white} .hbtn-fin:hover{background:#a8680b}
 .hbtn-fin.finalizado{background:var(--verde);cursor:default}
+.admin-overlay{position:fixed;inset:0;background:rgba(13,45,78,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.admin-box{background:white;border-radius:var(--rlg);padding:0;max-width:520px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,.25);overflow:hidden;max-height:90vh;display:flex;flex-direction:column}
+.admin-header{background:var(--azul);color:white;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.admin-header h3{font-size:15px;font-weight:600}
+.admin-close{background:none;border:none;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;line-height:1}
+.admin-body{padding:20px;overflow-y:auto;flex:1}
+.admin-section{margin-bottom:18px}
+.admin-section-title{font-size:12px;font-weight:600;color:var(--azul);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--borde)}
+.persona-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--gris);border-radius:var(--r);margin-bottom:6px;font-size:13px}
+.persona-name{font-weight:500;color:var(--txt)}
+.btn-del-persona{background:none;border:none;color:var(--rojo);cursor:pointer;font-size:16px;padding:0 4px;line-height:1}
+.admin-add-row{display:flex;gap:8px;margin-top:10px}
+.admin-add-row input{flex:1;padding:8px 11px;border:1.5px solid var(--borde);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px}
+.admin-add-row input:focus{outline:none;border-color:var(--azul-m)}
+.btn-admin-add{padding:8px 16px;border-radius:var(--r);background:var(--azul);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn-admin-add:hover{background:var(--azul-m)}
+.pin-box{display:flex;flex-direction:column;align-items:center;padding:30px 20px}
+.pin-box h3{font-size:16px;font-weight:600;color:var(--azul);margin-bottom:6px}
+.pin-box p{font-size:13px;color:var(--txt-s);margin-bottom:20px;text-align:center}
+.pin-input{width:180px;text-align:center;font-size:24px;letter-spacing:8px;padding:10px;border:2px solid var(--borde);border-radius:var(--r);font-family:'DM Sans',sans-serif}
+.pin-input:focus{outline:none;border-color:var(--azul)}
+.pin-error{color:var(--rojo);font-size:12px;margin-top:8px;display:none}
+.admin-footer{padding:14px 20px;border-top:1px solid var(--borde);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+.btn-admin-save{padding:9px 20px;border-radius:var(--r);background:var(--verde);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+.btn-admin-save:hover{background:#085e3f}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--azul);color:white;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.verde{background:var(--verde)}
@@ -275,6 +300,11 @@ table.reg td input:focus,table.reg td select:focus{outline:none;background:#e8f2
   <div class="menu-title">Informes de Calidad e Inocuidad</div>
   <div class="menu-sub">Productos Vicky S.A.S.</div>
   <div class="menu-cards">
+    <div class="menu-card" onclick="abrirAdmin()">
+      <div class="menu-card-icon" style="background:#f0eaff;font-size:20px">⚙️</div>
+      <div class="menu-card-title">Administración</div>
+      <div class="menu-card-desc">Gestionar lista de responsables y configuración de la planta.</div>
+    </div>
     <div class="menu-card" onclick="abrirFormulario('emp')">
       <span class="freq-badge freq-t">Por turno</span>
       <div class="menu-card-icon ic-a">📦</div>
