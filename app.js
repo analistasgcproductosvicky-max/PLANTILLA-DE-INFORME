@@ -153,8 +153,8 @@ function preg(num, txt, key, condSi = '', condNo = '') {
       <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
       <button class="rbtn" onclick="siNo(this,'no')">No</button>
     </div>
-    ${condSi ? `<div class="cond-si" style="display:none">${condSi}</div>` : ''}
-    ${condNo ? `<div class="cond-no" style="display:none">${condNo}</div>` : ''}
+    ${condSi ? `<div class="cond-si" data-for="${key}" style="display:none">${condSi}</div>` : ''}
+    ${condNo ? `<div class="cond-no" data-for="${key}" style="display:none">${condNo}</div>` : ''}
   </div>`;
 }
 
@@ -179,35 +179,26 @@ function toggleSec(header) {
 }
 
 function siNo(btn, val) {
-  const row  = btn.closest('.sino-row');
+  const row = btn.closest('.sino-row');
   row.querySelectorAll('.rbtn').forEach(b => b.classList.remove('si','no'));
   btn.classList.add(val);
-  // Look in immediate parent first (handles RX per-unit cond-no),
-  // then fall back to closest .pregunta for standard questions
-  const container = row.parentElement;
-  const cs = container.querySelector('.cond-si') || row.closest('.pregunta')?.querySelector('.cond-si');
-  const cn = container.querySelector('.cond-no') || row.closest('.pregunta')?.querySelector('.cond-no');
-  // Only toggle the cond inside the same container as sino-row (not across pregunta)
-  const containerCs = container.querySelector('.cond-si');
-  const containerCn = container.querySelector('.cond-no');
-  if(containerCs) containerCs.style.display = val === 'si' ? 'block' : 'none';
-  if(containerCn) containerCn.style.display = val === 'no' ? 'block' : 'none';
-  // Fallback: if cond is direct child of pregunta (not in sub-container)
-  if(!containerCs && !containerCn) {
-    const preg = row.closest('.pregunta');
-    if(preg) {
-      const pcs = preg.querySelector(':scope > .cond-si');
-      const pcn = preg.querySelector(':scope > .cond-no');
-      if(pcs) pcs.style.display = val === 'si' ? 'block' : 'none';
-      if(pcn) pcn.style.display = val === 'no' ? 'block' : 'none';
-    }
+  const key = row.dataset.key;
+  // Find EXACT cond blocks using data-for attribute
+  const pregEl = document.getElementById('preg-' + key) || row.closest('.pregunta');
+  if(pregEl) {
+    const cs = pregEl.querySelector(`.cond-si[data-for="${key}"]`);
+    const cn = pregEl.querySelector(`.cond-no[data-for="${key}"]`);
+    if(cs) cs.style.display = val === 'si' ? 'block' : 'none';
+    if(cn) cn.style.display = val === 'no' ? 'block' : 'none';
+    // Handle direct textarea/input disable
+    const det = pregEl.querySelector(':scope > textarea.rdet, :scope > input.rinp');
+    if(det) { det.disabled = val === 'no'; if(val === 'no') det.value = ''; }
   }
-  const det = row.closest('.pregunta')?.querySelector(':scope > textarea.rdet, :scope > input.rinp');
-  if(det) { det.disabled = val === 'no'; if(val === 'no') det.value = ''; }
   const s = btn.closest('.seccion');
   if(s) actualizarTab(s.id.replace('sec-',''));
   autoSave();
 }
+
 
 function addRow(id, n) {
   const tb = document.getElementById(id)?.querySelector('tbody');
@@ -877,7 +868,7 @@ function renderPE() {
   function secExtruido(n) {
     const k = `ext${n}`;
     return sec(`ext-l${n}`, '⚙️', `Extruido — Línea ${n}`,
-      mkResp('extruido', `Responsable(s) Extruido Línea ${n}`) +
+      
       preg(1, `¿La Línea ${n} operó durante el turno?`, `${k}_opera`,
         `<div class="nota-info">Complete la información de operación</div>
         <div class="pregunta">
@@ -914,7 +905,7 @@ function renderPE() {
 
   function secPapa(linea) {
     const L = linea.toUpperCase();
-    return sec(linea,'🥔',`Papa — Línea ${L}`, mkResp(linea,`Responsable(s) Línea ${L}`) + `
+    return sec(linea,'🥔',`Papa — Línea ${L}`, `
       <div class="grid2" style="margin-bottom:12px">
         <div><div class="preg-label"><span class="pnum">1</span>Tipo de papa</div>
           <select class="rinp" data-campo="${linea}_tipo" onchange="autoSave()"><option value="">Seleccione...</option><option>Cachirry</option><option>Pareja</option><option>R12</option><option>Mezcla</option></select></div>
@@ -973,7 +964,7 @@ function renderPE() {
     const pelletBtns = PELLETS.map(p =>
       `<button class="rbtn" style="font-size:11px" onclick="selProceso('${k}','pellet','${p}')">${p}</button>`
     ).join('');
-    return sec(id, icon, nombre, mkResp(k, `Responsable(s) ${nombre}`) + `
+    return sec(id, icon, nombre, `
       ${preg(1, `¿La línea de ${nombre} operó durante el turno?`, `${k}_opera`,
         `<div class="pregunta">
           <div class="preg-label"><span class="pnum">a</span>¿Qué se procesó en esta línea?</div>
@@ -1091,7 +1082,7 @@ function renderPE() {
     ${tbl('t-pellet',['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'])}
     ${foto('Fotos de tanque y PNC','Fotos obligatorias','f_pellet_fotos')}`;
 
-  const secRos = sec('rosquilla','🔵','Rosquilla', mkResp('rosquilla','Responsable(s) Rosquilla') +
+  const secRos = sec('rosquilla','🔵','Rosquilla',
     preg(1,'¿La línea de Rosquilla operó durante el turno?','ros_opera',
       `<div class="nota-info">Complete la información de producción</div>
       <div class="pregunta">
@@ -1175,6 +1166,15 @@ function renderPE() {
       <select class="dato-inp" data-campo="turno" onchange="autoSave()"><option>1</option><option>2</option><option>3</option></select></div>
     <div class="dato-item"><label>Código</label>
       <input type="text" class="dato-inp" data-campo="codigo" placeholder="Ej. PR-226" oninput="autoSave()"></div>
+  </div>
+
+  <div class="seccion" style="margin-bottom:12px">
+    <div style="background:var(--azul);border-radius:var(--rlg);padding:14px 18px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:white;white-space:nowrap;padding-top:3px">👷 Inspectores de proceso:</span>
+      <div style="flex:1">
+        ${mkResp('pe_general','Inspectores de proceso')}
+      </div>
+    </div>
   </div>
   ${secExtruido(1)} ${secExtruido(2)} ${secExtruido(3)}
   ${secRos}
