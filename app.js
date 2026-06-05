@@ -1038,23 +1038,38 @@ function renderPE() {
       <div class="preg-label"><span class="pnum">a</span>¿Qué referencias salieron?</div>
       ${tbl('t-tort-prod',['Referencia','% Saborización','Observaciones'],2)}
     </div>
+
     ${preg('b','¿Los tiempos de reposo se están cumpliendo?','tort_reposo',``,
       tbl('t-tort-reposo',['Referencia','Tiempo real','Tiempo requerido','Motivo'],1)
     )}
-    ${preg('c','¿Se adicionó maíz del tanque sedimentador de finos?','tort_maiz',
-      tbl('t-tort-maiz',['Cantidad (kg)','Observaciones'],1)
+
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">c</span>¿Qué se hizo con el maíz durante el turno? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varias)</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">
+        <button class="rbtn" id="btn-maiz-reposo" onclick="toggleMaiz('reposo',this)">Se procesó maíz en reposo</button>
+        <button class="rbtn" id="btn-maiz-cocinar" onclick="toggleMaiz('cocinar',this)">Se pusieron tanques a cocinar</button>
+        <button class="rbtn" id="btn-maiz-nada" onclick="toggleMaiz('nada',this)">No se procesó maíz</button>
+      </div>
+      <div id="bloque-maiz-reposo" style="display:none;margin-top:6px">
+        <label style="font-size:12px;color:var(--txt-s)">Maíz en reposo procesado:</label>
+        ${tbl('t-tort-maiz-rep',['Tanque','Cantidad (kg)','Tiempo de reposo','Observaciones'],1)}
+      </div>
+      <div id="bloque-maiz-cocinar" style="display:none;margin-top:6px">
+        <label style="font-size:12px;color:var(--txt-s)">Nuevos tanques puestos a cocinar:</label>
+        ${tbl('t-tort-maiz-coc',['Tanque','Cantidad (kg)','Hora inicio cocción','Observaciones'],1)}
+      </div>
+      <input type="hidden" data-campo="tort_maiz_estado" id="tort_maiz_estado">
+    </div>
+
+    ${preg('d','¿Se garantizó la selección de PNC a la salida del horno y del freedor?','tort_sel',
+      `<textarea class="rdet" data-campo="tort_sel_si_det" placeholder="Describa cómo se realizó la selección en horno y freedor..." oninput="autoSave()"></textarea>
+       ${foto('📷 Fotos de selección PNC — horno y freedor','Adjuntar fotos de ambos puntos','f_tort_sel')}`,
+      `<textarea class="rdet" data-campo="tort_sel_no_det" placeholder="¿Por qué no se garantizó? Describa qué pasó..." oninput="autoSave()"></textarea>`
     )}
-    ${preg('d','¿Se garantizó la selección de PNC a la salida del horno?','tort_sel_horno',
-      `<textarea class="rdet" data-campo="tort_sel_horno_det" placeholder="Describa cómo se realizó..." oninput="autoSave()"></textarea>`,
-      `<textarea class="rdet" data-campo="tort_sel_horno_no" placeholder="¿Por qué no se garantizó?" oninput="autoSave()"></textarea>`
-    )}
-    ${preg('e','¿Se garantizó la selección de PNC a la salida del freedor?','tort_sel_freed',
-      `<textarea class="rdet" data-campo="tort_sel_freed_det" placeholder="Describa cómo se realizó..." oninput="autoSave()"></textarea>`,
-      `<textarea class="rdet" data-campo="tort_sel_freed_no" placeholder="¿Por qué no se garantizó?" oninput="autoSave()"></textarea>`
-    )}
-    ${foto('📷 Fotos selección PNC — horno y freedor','Adjuntar fotos de ambos puntos','f_tort_sel')}
-    ${preg('f','¿Hubo producto no conforme?','tort_pnc',
-      tbl('t-tort-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
+
+    ${preg('e','¿Hubo producto no conforme?','tort_pnc',
+      `${tbl('t-tort-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)}
+       ${foto('📷 Fotos del PNC','Adjuntar evidencia fotográfica del producto no conforme','f_tort_pnc')}`
     )}`;
 
   const pregsTrocillo = `
@@ -1143,12 +1158,16 @@ function renderPE() {
           <button class="rbtn" onclick="selQueso(this,'dona-rosa')">Doña Rosa</button>
           <button class="rbtn" onclick="selQueso(this,'colanta')">Colanta</button>
           <button class="rbtn" onclick="selQueso(this,'otro')">Otro proveedor</button>
+          <button class="rbtn" onclick="selQueso(this,'mezcla')">Mezcla</button>
         </div>
         <input type="hidden" data-campo="ros_queso_prov" id="ros_queso_prov">
         <div id="ros-queso-otro" style="display:none;margin-bottom:8px">
           <input class="rinp" type="text" data-campo="ros_queso_otro_nombre" placeholder="¿Cuál proveedor?" oninput="autoSave()">
         </div>
-        <input class="rinp" type="text" data-campo="ros_queso_kg" placeholder="Cantidad utilizada (kg)" style="margin-top:4px" oninput="autoSave()">
+        <div id="ros-queso-mezcla" style="display:none;margin-bottom:8px">
+          <textarea class="rdet" data-campo="ros_queso_mezcla_det" placeholder="¿Cuál mezcla se hizo y en qué proporción? Ej. 70% Doña Rosa + 30% Colanta..." oninput="autoSave()" style="min-height:56px"></textarea>
+        </div>
+        <input class="rinp" type="text" data-campo="ros_queso_kg" placeholder="Cantidad total utilizada (kg)" style="margin-top:4px" oninput="autoSave()">
       </div>
       ${preg('d','¿Se liberó queso durante el turno?','ros_queso_lib',
         tbl('t-ros-queso',['Queso liberado','Cantidad (kg)','PNC generado'],1)
@@ -1233,7 +1252,40 @@ function selQueso(btn, tipo) {
   btn.classList.add('si');
   const inp = document.getElementById('ros_queso_prov');
   if(inp) inp.value = tipo;
-  document.getElementById('ros-queso-otro').style.display = tipo === 'otro' ? 'block' : 'none';
+  const elOtro   = document.getElementById('ros-queso-otro');
+  const elMezcla = document.getElementById('ros-queso-mezcla');
+  if(elOtro)   elOtro.style.display   = tipo === 'otro'   ? 'block' : 'none';
+  if(elMezcla) elMezcla.style.display = tipo === 'mezcla' ? 'block' : 'none';
+  autoSave();
+}
+
+function toggleMaiz(tipo, btn) {
+  if(tipo === 'nada') {
+    // Deselect others, select nada
+    ['reposo','cocinar'].forEach(t => {
+      const b = document.getElementById('btn-maiz-'+t);
+      if(b) b.classList.remove('si');
+      const bl = document.getElementById('bloque-maiz-'+t);
+      if(bl) bl.style.display = 'none';
+    });
+    btn.classList.toggle('si');
+    const inp = document.getElementById('tort_maiz_estado');
+    if(inp) inp.value = btn.classList.contains('si') ? 'nada' : '';
+  } else {
+    // Deselect nada, toggle this one
+    const nada = document.getElementById('btn-maiz-nada');
+    if(nada) nada.classList.remove('si');
+    btn.classList.toggle('si');
+    const bloque = document.getElementById('bloque-maiz-'+tipo);
+    if(bloque) bloque.style.display = btn.classList.contains('si') ? 'block' : 'none';
+    // Update estado
+    const activos = ['reposo','cocinar'].filter(t => {
+      const b = document.getElementById('btn-maiz-'+t);
+      return b && b.classList.contains('si');
+    });
+    const inp = document.getElementById('tort_maiz_estado');
+    if(inp) inp.value = activos.join(',');
+  }
   autoSave();
 }
 
@@ -1658,7 +1710,7 @@ async function generarPDF() {
       const formRows = gtbl('t-ros-form').filter(r=>r.some(v=>v?.trim()));
       if(formRows.length){ titulo('Formulación utilizada',2); tabla(['Ingrediente','Cantidad'],formRows); }
       const qProv = gv('ros_queso_prov'); const qKg = gv('ros_queso_kg');
-      const qNombre = qProv==='dona-rosa'?'Doña Rosa':qProv==='colanta'?'Colanta':gv('ros_queso_otro_nombre')||qProv;
+      const qNombre = qProv==='dona-rosa'?'Doña Rosa':qProv==='colanta'?'Colanta':qProv==='mezcla'?`Mezcla: ${gv('ros_queso_mezcla_det')}`:gv('ros_queso_otro_nombre')||qProv;
       if(qNombre) campo('Queso utilizado', `${qNombre}${qKg?' — '+qKg+' kg':''}`);
       campo('Liberación de queso','',gsino('ros_queso_lib'),'Sin liberación de queso');
       if(gsino('ros_queso_lib')==='si') tabla(['Queso','Cantidad','PNC'],gtbl('t-ros-queso'));
@@ -1689,13 +1741,19 @@ async function generarPDF() {
             if(tortRows.length){ titulo('Referencias producidas',2); tabla(['Referencia','% Sabor.','Obs'],tortRows); }
             campo('Tiempos de reposo','',gsino('tort_reposo'),'Tiempos de reposo cumplidos');
             if(gsino('tort_reposo')==='no') tabla(['Ref','T.Real','T.Req','Motivo'],gtbl('t-tort-reposo'));
-            campo('Maíz sedimentador','',gsino('tort_maiz'),'No se adicionó maíz sedimentador');
-            if(gsino('tort_maiz')==='si') tabla(['Cantidad (kg)','Obs'],gtbl('t-tort-maiz'));
-            campo('Selección PNC — horno','',gsino('tort_sel_horno'),'Sin garantía de selección PNC en horno');
-            campo('Selección PNC — freedor','',gsino('tort_sel_freed'),'Sin garantía de selección PNC en freedor');
+            // Maíz
+            const maizEst = gv('tort_maiz_estado');
+            if(maizEst && maizEst !== 'nada') {
+              titulo('Maíz procesado en el turno',2);
+              if(maizEst.includes('reposo')){ campo('Maíz en reposo procesado',''); tabla(['Tanque','Cantidad (kg)','T.Reposo','Obs'],gtbl('t-tort-maiz-rep')); }
+              if(maizEst.includes('cocinar')){ campo('Nuevos tanques puestos a cocinar',''); tabla(['Tanque','Cantidad (kg)','Hora inicio','Obs'],gtbl('t-tort-maiz-coc')); }
+            } else if(maizEst === 'nada') {
+              campo('','','no','No se procesó maíz en este turno');
+            }
+            campo('Selección PNC — horno y freedor', gv('tort_sel_si_det')||gv('tort_sel_no_det'), gsino('tort_sel'), 'No se garantizó selección de PNC');
             await fotos(document.querySelector('.fgrid[data-fid="f_tort_sel"]'));
             campo('PNC','',gsino('tort_pnc'),'Sin producto no conforme');
-            if(gsino('tort_pnc')==='si') tabla(['Ref','Causa','Cantidad','¿Qué se hizo?'],gtbl('t-tort-pnc'));
+            if(gsino('tort_pnc')==='si'){ tabla(['Ref','Causa','Cantidad','¿Qué se hizo?'],gtbl('t-tort-pnc')); await fotos(document.querySelector('.fgrid[data-fid="f_tort_pnc"]')); }
           } else if(id === 'linea-troc') {
             const trocRows = gtbl('t-trocillo').filter(r=>r.some(v=>v?.trim()));
             if(trocRows.length){ titulo('Producción',2); tabla(['Ref','P.Crudo','P.Freído','T.Reposo','T.Freído','Resp'],trocRows); }
