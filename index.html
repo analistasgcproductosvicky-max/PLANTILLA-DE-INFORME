@@ -150,14 +150,14 @@ body{font-family:'DM Sans',sans-serif;background:#eef1f7;color:var(--txt);font-s
 .dato-inp option{background:var(--azul)}
 
 /* ── SECCIÓN ── */
-.seccion{background:var(--blanco);border-radius:var(--rlg);border:1px solid var(--borde);margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(13,45,78,.05)}
+.seccion{background:var(--blanco);border-radius:var(--rlg);border:1px solid var(--borde);margin-bottom:12px;overflow:visible;box-shadow:0 2px 8px rgba(13,45,78,.05)}
 .sec-header{background:var(--azul-cl);border-bottom:1px solid var(--borde);padding:11px 16px;display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none}
 .sec-header:hover{background:#dcedf8}
 .sec-icon{width:28px;height:28px;background:var(--azul);border-radius:7px;display:flex;align-items:center;justify-content:center;color:white;font-size:13px;flex-shrink:0}
 .sec-titulo{font-size:13px;font-weight:600;color:var(--azul);flex:1}
 .sec-chev{color:var(--txt-s);font-size:13px;transition:transform .25s}
 .sec-chev.ab{transform:rotate(180deg)}
-.sec-body{padding:16px;display:none}
+.sec-body{padding:16px;display:none;overflow:visible}
 .sec-body.ab{display:block}
 
 /* ── RESPONSABLES ── */
@@ -169,7 +169,7 @@ body{font-family:'DM Sans',sans-serif;background:#eef1f7;color:var(--txt);font-s
 .resp-drop{position:relative;display:inline-block}
 .resp-add{background:none;border:1.5px dashed var(--borde);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--txt-s);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
 .resp-add:hover{border-color:var(--azul-m);color:var(--azul)}
-.resp-menu{position:absolute;top:26px;left:0;background:var(--blanco);border:1px solid var(--borde);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:50;min-width:200px;display:none}
+.resp-menu{position:fixed;background:var(--blanco);border:1px solid var(--borde);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:500;min-width:220px;display:none;max-height:260px;overflow-y:auto}
 .resp-menu.show{display:block}
 .resp-menu-item{padding:8px 13px;font-size:13px;cursor:pointer;color:var(--txt)}
 .resp-menu-item:hover{background:var(--azul-cl)}

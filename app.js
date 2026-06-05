@@ -265,7 +265,16 @@ function verFoto(src) {
 /* ══════ RESPONSABLES ══════ */
 function toggleRespMenu(id) {
   document.querySelectorAll('.resp-menu.show').forEach(m => { if(m.id !== id) m.classList.remove('show'); });
-  document.getElementById(id)?.classList.toggle('show');
+  const menu = document.getElementById(id);
+  if(!menu) return;
+  // Position using fixed coordinates relative to viewport
+  const btn = menu.previousElementSibling;
+  if(btn) {
+    const r = btn.getBoundingClientRect();
+    menu.style.top  = (r.bottom + 4) + 'px';
+    menu.style.left = r.left + 'px';
+  }
+  menu.classList.toggle('show');
 }
 document.addEventListener('click', e => {
   if(!e.target.closest('.resp-drop')) document.querySelectorAll('.resp-menu.show').forEach(m => m.classList.remove('show'));
@@ -1164,8 +1173,6 @@ function renderPE() {
     <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave()"></div>
     <div class="dato-item"><label>Turno</label>
       <select class="dato-inp" data-campo="turno" onchange="autoSave()"><option>1</option><option>2</option><option>3</option></select></div>
-    <div class="dato-item"><label>Código</label>
-      <input type="text" class="dato-inp" data-campo="codigo" placeholder="Ej. PR-226" oninput="autoSave()"></div>
   </div>
 
   <div class="seccion" style="margin-bottom:12px">
@@ -1566,45 +1573,147 @@ async function generarPDF() {
     await fotos(document.querySelector('.fgrid[data-fid="emp_otras_fotos"]'));
 
   } else if(tipoActual==='pe') {
-    const secs = {
-      extruido: async ()=>{ titulo('1. Extruido'); campo('Responsables',getResp('extruido').join(', ')||'—'); campo('Extrusores operando',gv('ext_op')); campo('Limpiezas de líneas','',gsino('ext_limp')); if(gsino('ext_limp')==='si') tabla(['Extrusor','Tipo','Responsable'],gtbl('t-ext-limp')); campo('Adición al proceso','',gsino('ext_adicion')); if(gsino('ext_adicion')==='si') tabla(['Material','Cantidad','Motivo'],gtbl('t-ext-adicion')); campo('Densidades fuera de parámetros','',gsino('ext_dens')); if(gsino('ext_dens')==='si') tabla(['Referencia','Densidad','Parámetro','Causa'],gtbl('t-ext-dens')); campo('Incumplimientos de dimensiones','',gsino('ext_dim')); if(gsino('ext_dim')==='si') tabla(['Referencia','Valor','Especificación','Acción'],gtbl('t-ext-dim')); campo('PNC generado','',gsino('ext_pnc')); if(gsino('ext_pnc')==='si'){ tabla(['Referencia','Descripción','Causa','Cantidad'],gtbl('t-ext-pnc')); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-extruido'))); } titulo('Registro extruido',2); tabla(['Referencia','Densidad','¿Cumple D?','¿Cumple Dim?','Obs'],gtbl('t-extruido')); },
-      rosquilla: async ()=>{ titulo('2. Rosquilla'); campo('Responsables',getResp('rosquilla').join(', ')||'—'); campo('Formulación',gv('ros_form')); campo('Queso',gv('ros_queso')); campo('Liberación de queso','',gsino('ros_queso_lib')); if(gsino('ros_queso_lib')==='si') tabla(['Queso','Cantidad','PNC'],gtbl('t-ros-queso')); campo('Falta de MP','',gsino('ros_mp')); if(gsino('ros_mp')==='si') tabla(['MP','Impacto','Acción'],gtbl('t-ros-mp')); campo('Hornos funcionales / operando',gv('ros_hornos_f')+' / '+gv('ros_hornos_op')); campo('Novedades hornos',gv('ros_hornos_nov')); campo('PNC','',gsino('ros_pnc')); if(gsino('ros_pnc')==='si') tabla(['Referencia','Causa','Cantidad','Disposición'],gtbl('t-ros-pnc')); campo('Desviaciones de densidad','',gsino('ros_dens')); if(gsino('ros_dens')==='si') tabla(['Referencia','Densidad','Parámetro','Causa'],gtbl('t-ros-dens')); titulo('Parámetros rosquilla',2); tabla(['Referencia','Batch','C.Crudo','P.Final','T°Amb','T°Masa','T.Rep','Hum%','T°Cuarto'],gtbl('t-rosquilla')); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-rosquilla'))); },
-      tortillas: async ()=>{ titulo('3. Tortillas'); campo('Responsables',getResp('tortillas').join(', ')||'—'); campo('Incumplimientos reposo','',gsino('tort_reposo')); if(gsino('tort_reposo')==='si') tabla(['Referencia','T.Real','T.Req','Motivo'],gtbl('t-tort-reposo')); campo('PNC','',gsino('tort_pnc')); if(gsino('tort_pnc')==='si') tabla(['Referencia','Causa','Cantidad','Disposición'],gtbl('t-tort-pnc')); campo('Selección PNC',gv('tort_sel_det'),gsino('tort_sel')); campo('Maíz sedimentador','',gsino('tort_maiz')); if(gsino('tort_maiz')==='si') tabla(['Cantidad','Obs'],gtbl('t-tort-maiz')); campo('Desviaciones saborización','',gsino('tort_sabor')); if(gsino('tort_sabor')==='si') tabla(['Ref','%Reg','%Req','Acción'],gtbl('t-tort-sabor')); campo('Plagas en maíz','',gsino('tort_plagas')); if(gsino('tort_plagas')==='si') tabla(['Tipo','Área','Acción'],gtbl('t-tort-plagas')); campo('Equipos en mantenimiento','',gsino('tort_mto')); if(gsino('tort_mto')==='si') tabla(['Equipo','Tipo','Estado cierre'],gtbl('t-tort-mto')); titulo('Parámetros tortillas',2); tabla(['Referencia','P.Crudo','P.Horn','T.Rep','T.Horn','T.Freid','%Sab','Resp'],gtbl('t-tortillas')); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-tortillas'))); },
-      trocillo: async ()=>{ titulo('4. Trocillo'); campo('Responsables',getResp('trocillo').join(', ')||'—'); campo('Tipo de aceite',gv('troc_aceite')); campo('Exportación en turno','',gsino('troc_exp')); if(gsino('troc_exp')==='si') tabla(['Referencia','Lote','Destino'],gtbl('t-troc-exp')); campo('Reprocesos','',gsino('troc_rep')); if(gsino('troc_rep')==='si') tabla(['Tipo','Cantidad','Motivo'],gtbl('t-troc-rep')); campo('Mezcla de aceite',gv('troc_mezcla_det'),gsino('troc_mezcla')); campo('Incumplimientos dimensiones','',gsino('troc_dim')); if(gsino('troc_dim')==='si'){ tabla(['Variable','Valor','Esp','Acción'],gtbl('t-troc-dim')); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-trocillo'))); } campo('Desviaciones densidad','',gsino('troc_dens')); if(gsino('troc_dens')==='si') tabla(['Ref','Densidad','Parámetro','Causa'],gtbl('t-troc-dens')); campo('Equipos con falla','',gsino('troc_falla')); if(gsino('troc_falla')==='si') tabla(['Equipo','Falla','Acción'],gtbl('t-troc-falla')); titulo('Parámetros trocillo',2); tabla(['Referencia','P.Crudo','P.Freído','T.Reposo','T.Freído','Responsable'],gtbl('t-trocillo')); titulo('Dimensiones antes reposo',2); tabla(['Variable','M1','M2','M3','M4','M5'],gtbl('t-troc-antes')); titulo('Dimensiones después freído',2); tabla(['Variable','M1','M2','M3','M4','M5'],gtbl('t-troc-despues')); },
-    };
-    for(const fn of Object.values(secs)) { doc.addPage(); pg++; y=MT; cabecera(); await fn(); }
+    const inspectores = getResp('pe_general').join(', ')||'—';
+    campo('Inspectores de proceso', inspectores);
+    y += 3;
 
-    for(const linea of ['daf','pc4','pc6']) {
-      doc.addPage(); pg++; y=MT; cabecera();
-      const L = linea.toUpperCase();
-      titulo(`Papa — Línea ${L}`);
-      campo('Responsables', getResp(linea).join(', ')||'—');
-      campo('Tipo de papa', gv(linea+'_tipo')); campo('T° cuarto', gv(linea+'_temp')+' °C');
-      campo('Mezclas de papa','',gsino(linea+'_mezcla')); if(gsino(linea+'_mezcla')==='si') tabla(['Tipos','Proporción','Obs'],gtbl('t-'+linea+'-mezcla'));
-      campo('Papa de guacal / bulto','',gsino(linea+'_guacal')); if(gsino(linea+'_guacal')==='si') tabla(['Tipo','Cantidad','Lavador'],gtbl('t-'+linea+'-guacal'));
-      campo('Calibración tambores','',gsino(linea+'_tambores')); if(gsino(linea+'_tambores')==='si') tabla(['N° Tambor','Limpieza','Resp'],gtbl('t-'+linea+'-tambores'));
-      campo('Limpiezas de tanques','',gsino(linea+'_tanques')); if(gsino(linea+'_tanques')==='si'){ tabla(['Tanque','Tipo','Resp'],gtbl('t-'+linea+'-tanques')); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest(`#sec-${linea}`))); }
-      campo('Limpiezas bombos','',gsino(linea+'_bombos')); if(gsino(linea+'_bombos')==='si') tabla(['Bombo','Ref anterior','Ref nueva'],gtbl('t-'+linea+'-bombos'));
-      campo('Reproceso papa otro sabor','',gsino(linea+'_reproc')); if(gsino(linea+'_reproc')==='si') tabla(['Referencia','Cantidad','Sabor'],gtbl('t-'+linea+'-reproc'));
-      campo('Tipo de aceite', gv(linea+'_aceite')+' / '+gv(linea+'_aceite_tipo'));
-      campo('Papa cruda detectada','',gsino(linea+'_cruda')); if(gsino(linea+'_cruda')==='si') tabla(['Cantidad','Causa','Acción'],gtbl('t-'+linea+'-cruda'));
-      campo('PNC','',gsino(linea+'_pnc')); if(gsino(linea+'_pnc')==='si'){ tabla(['Descripción','Causa','Cantidad','Disposición'],gtbl('t-'+linea+'-pnc')); await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest(`#sec-${linea}`) && g.closest('.pregunta')?.querySelector(`.sino-row[data-key="${linea}_pnc"]`))); }
-      titulo(`Registro referencias — Línea ${L}`,2); tabla(['Referencia','% Saborización','Observaciones'],gtbl('t-'+linea));
+    // Helper: sección por línea — solo imprime si operó o si no operó con limpieza
+    async function secLinPDF(num, nombre, operaKey, contenidoFn) {
+      const opera = gsino(operaKey);
+      check(12);
+      titulo(`${num}. ${nombre}`, 1);
+      if(opera === 'no') {
+        const limpKey = operaKey.replace('_opera','_limp_paro');
+        const limpSi  = gsino(limpKey);
+        if(limpSi === 'si') {
+          campo('No operó — Limpieza realizada', gv(limpKey + '_det'), 'si');
+        } else {
+          campo('', '', 'no', `${nombre} no operó. No se realizó limpieza.`);
+        }
+      } else if(opera === 'si') {
+        contenidoFn();
+      } else {
+        campo('', '', 'no', `${nombre} — sin registro en este turno`);
+      }
     }
 
-    doc.addPage(); pg++; y=MT; cabecera();
-    titulo('9. Pellet');
-    campo('Responsables', getResp('pellet').join(', ')||'—');
-    campo('Tipo de aceite', gv('pell_aceite')); campo('Tipo de limpieza', gv('pell_limp_tipo')); campo('Detalle limpiezas', gv('pell_limp_det'));
-    campo('Temp. superaron 180°C','',gsino('pell_temp')); if(gsino('pell_temp')==='si') tabla(['Referencia','T°','Hora','Acción'],gtbl('t-pell-temp'));
-    campo('Desviaciones densidad','',gsino('pell_dens')); if(gsino('pell_dens')==='si') tabla(['Referencia','Densidad','Parámetro','Causa'],gtbl('t-pell-dens'));
-    campo('Mezclas de producto','',gsino('pell_mezcla')); if(gsino('pell_mezcla')==='si') tabla(['Productos','Proporción','Obs'],gtbl('t-pell-mezcla'));
-    campo('Reprocesos','',gsino('pell_reproc')); if(gsino('pell_reproc')==='si') tabla(['Referencia','Tipo','Cantidad'],gtbl('t-pell-reproc'));
-    campo('MP fechas cortas','',gsino('pell_fechas')); if(gsino('pell_fechas')==='si') tabla(['MP','Fecha Venc.','Cantidad'],gtbl('t-pell-fechas'));
-    campo('PNC','',gsino('pell_pnc')); if(gsino('pell_pnc')==='si') tabla(['Referencia','Descripción','Causa','Disposición'],gtbl('t-pell-pnc'));
-    campo('Acciones correctivas', gv('pell_acc')); campo('TPM', gv('pell_tpm'));
-    titulo('Registro referencias pellet',2); tabla(['Referencia','% Sabor.','T° (°C)','¿Cumple T°?','Obs'],gtbl('t-pellet'));
-    await fotos([...document.querySelectorAll('.fgrid')].find(g=>g.closest('#sec-pellet')));
+    // Extruido: 3 líneas
+    for(const n of [1,2,3]) {
+      const k = `ext${n}`;
+      await secLinPDF(`Extruido Línea ${n}`, `Extruido Línea ${n}`, `${k}_opera`, async () => {
+        campo('Extrusor trabajado', gv(`${k}_extrusor`));
+        campo('Limpieza de extrusores','',gsino(`${k}_limp_ext`));
+        if(gsino(`${k}_limp_ext`)==='si') tabla(['Extrusor','Tipo limpieza','Obs'],gtbl(`t-${k}-limp`));
+        const prodRows = gtbl(`t-${k}-prod`).filter(r=>r.some(v=>v?.trim()));
+        if(prodRows.length){ titulo('Productos del turno',2); tabla(['Referencia','Observaciones'],prodRows); }
+        campo('Ingredientes agregados','',gsino(`${k}_ingred`));
+        if(gsino(`${k}_ingred`)==='si') tabla(['Ingrediente','Cantidad (kg)','Motivo'],gtbl(`t-${k}-ingred`));
+        campo('Densidades conformes','',gsino(`${k}_dens`), 'Densidades dentro de parámetros');
+        if(gsino(`${k}_dens`)==='no') campo('Motivo densidades', gv(`${k}_dens_mot`));
+        campo('Dimensiones conformes','',gsino(`${k}_dim`), 'Dimensiones dentro de especificación');
+        if(gsino(`${k}_dim`)==='no'){ campo('Motivo dimensiones', gv(`${k}_dim_mot`)); await fotos(document.querySelector(`.fgrid[data-fid="f_${k}_dim"]`)); }
+        campo('PNC en la línea','',gsino(`${k}_pnc`), 'Sin producto no conforme');
+        if(gsino(`${k}_pnc`)==='si') tabla(['Referencia','Causa','Cantidad','¿Qué se hizo?'],gtbl(`t-${k}-pnc`));
+      });
+    }
+
+    // Rosquilla
+    await secLinPDF('Rosquilla', 'Rosquilla', 'ros_opera', async () => {
+      const rosRows = gtbl('t-rosquilla').filter(r=>r.some(v=>v?.trim()));
+      if(rosRows.length){ titulo('Producción del turno',2); tabla(['Ref','Batches','C.Crudo','P.Final','T°Amb','T°Masa','T.Rep','Hum%','T°Cuarto','Amasadores','Horneros'],rosRows); }
+      const formRows = gtbl('t-ros-form').filter(r=>r.some(v=>v?.trim()));
+      if(formRows.length){ titulo('Formulación utilizada',2); tabla(['Ingrediente','Cantidad'],formRows); }
+      const qProv = gv('ros_queso_prov'); const qKg = gv('ros_queso_kg');
+      const qNombre = qProv==='dona-rosa'?'Doña Rosa':qProv==='colanta'?'Colanta':gv('ros_queso_otro_nombre')||qProv;
+      if(qNombre) campo('Queso utilizado', `${qNombre}${qKg?' — '+qKg+' kg':''}`);
+      campo('Liberación de queso','',gsino('ros_queso_lib'),'Sin liberación de queso');
+      if(gsino('ros_queso_lib')==='si') tabla(['Queso','Cantidad','PNC'],gtbl('t-ros-queso'));
+      campo('Materia prima faltante','',gsino('ros_mp'),'Sin faltantes de materia prima');
+      if(gsino('ros_mp')==='si') tabla(['MP','Impacto','Acción'],gtbl('t-ros-mp'));
+      campo('Hornos', `Funcionales: ${gv('ros_hornos_func')||'—'} | En operación: ${gv('ros_hornos_op')||'—'}`);
+      const novHornos = gv('ros_hornos_nov'); if(novHornos) campo('Novedades hornos', novHornos);
+      await fotos(document.querySelector('.fgrid[data-fid="f_ros_hornos"]'));
+      const prodConf = gsino('ros_prod_conf');
+      if(prodConf==='si') campo('Estado del producto','','si','Producto salió conforme');
+      else if(prodConf==='no'){
+        campo('Producto no conforme — Acción tomada', gv('ros_nc_accion'), 'no');
+        const logro = gsino('ros_nc_logro');
+        if(logro==='no') tabla(['Referencia','Causa','Cantidad','¿Qué se hizo?'],gtbl('t-ros-pnc'));
+      }
+      campo('Parámetros conformes','',gsino('ros_params'),'Parámetros dentro de especificación');
+      if(gsino('ros_params')==='no'){ campo('Parámetros no conformes', gv('ros_params_det')); await fotos(document.querySelector('.fgrid[data-fid="f_ros_params"]')); }
+    });
+
+    // Líneas flexibles: Tortilla, Trocillo, Pellet
+    for(const [id, nombre, n] of [['linea-tort','Tortilla','Línea Tortilla'],['linea-troc','Trocillo','Línea Trocillo'],['linea-pell','Pellet','Línea Pellet']]) {
+      await secLinPDF(nombre, n, `${id}_opera`, async () => {
+        const tipo = gv(`${id}_proceso_tipo`);
+        const pell = gv(`${id}_proceso_pellet`);
+        if(tipo === 'principal') {
+          if(id === 'linea-tort') {
+            const tortRows = gtbl('t-tort-prod').filter(r=>r.some(v=>v?.trim()));
+            if(tortRows.length){ titulo('Referencias producidas',2); tabla(['Referencia','% Sabor.','Obs'],tortRows); }
+            campo('Tiempos de reposo','',gsino('tort_reposo'),'Tiempos de reposo cumplidos');
+            if(gsino('tort_reposo')==='no') tabla(['Ref','T.Real','T.Req','Motivo'],gtbl('t-tort-reposo'));
+            campo('Maíz sedimentador','',gsino('tort_maiz'),'No se adicionó maíz sedimentador');
+            if(gsino('tort_maiz')==='si') tabla(['Cantidad (kg)','Obs'],gtbl('t-tort-maiz'));
+            campo('Selección PNC — horno','',gsino('tort_sel_horno'),'Sin garantía de selección PNC en horno');
+            campo('Selección PNC — freedor','',gsino('tort_sel_freed'),'Sin garantía de selección PNC en freedor');
+            await fotos(document.querySelector('.fgrid[data-fid="f_tort_sel"]'));
+            campo('PNC','',gsino('tort_pnc'),'Sin producto no conforme');
+            if(gsino('tort_pnc')==='si') tabla(['Ref','Causa','Cantidad','¿Qué se hizo?'],gtbl('t-tort-pnc'));
+          } else if(id === 'linea-troc') {
+            const trocRows = gtbl('t-trocillo').filter(r=>r.some(v=>v?.trim()));
+            if(trocRows.length){ titulo('Producción',2); tabla(['Ref','P.Crudo','P.Freído','T.Reposo','T.Freído','Resp'],trocRows); }
+            campo('Tipo de aceite', gv('troc_aceite'));
+            campo('Exportación','',gsino('troc_exp'),'Sin exportación en el turno');
+            if(gsino('troc_exp')==='si') tabla(['Ref','Lote','Destino'],gtbl('t-troc-exp'));
+            campo('Dimensiones conformes','',gsino('troc_dim'),'Dimensiones dentro de especificación');
+            if(gsino('troc_dim')==='no'){ campo('Motivo', gv('troc_dim_mot')); await fotos(document.querySelector('.fgrid[data-fid="f_troc_dim"]')); }
+            campo('Densidades conformes','',gsino('troc_dens'),'Densidades dentro de parámetros');
+            if(gsino('troc_dens')==='no') tabla(['Ref','Densidad','Parámetro','Causa'],gtbl('t-troc-dens'));
+            titulo('Dimensiones antes reposo',2); tabla(['Var','M1','M2','M3','M4','M5'],gtbl('t-troc-antes'));
+            titulo('Dimensiones después freído',2); tabla(['Var','M1','M2','M3','M4','M5'],gtbl('t-troc-despues'));
+          } else {
+            campo('Tipo de aceite', gv('pell_aceite'));
+            campo('Limpieza', gv('pell_limp_det'));
+            campo('Temp >180°C','',gsino('pell_temp'),'Temperaturas dentro de parámetros');
+            if(gsino('pell_temp')==='si') tabla(['Ref','T°','Hora','Acción'],gtbl('t-pell-temp'));
+            campo('PNC','',gsino('pell_pnc'),'Sin producto no conforme');
+            if(gsino('pell_pnc')==='si') tabla(['Ref','Causa','Cant','¿Qué se hizo?'],gtbl('t-pell-pnc'));
+            const pellRows = gtbl('t-pellet').filter(r=>r.some(v=>v?.trim()));
+            if(pellRows.length){ titulo('Registro',2); tabla(['Ref','%Sab','T°','¿Cumple?','Obs'],pellRows); }
+          }
+        } else if(tipo === 'pellet' && pell) {
+          campo(`Pellet procesado: ${pell}`, '');
+          const pr = gtbl(`t-${id}-pell-prod`).filter(r=>r.some(v=>v?.trim()));
+          if(pr.length){ titulo('Producción',2); tabla(['Ref','%Sab','Obs'],pr); }
+          campo('Temp >180°C','',gsino(`${id}_pell_temp`),'Temperaturas dentro de parámetros');
+          campo('Densidades','',gsino(`${id}_pell_dens`),'Densidades dentro de parámetros');
+          campo('PNC','',gsino(`${id}_pell_pnc`),'Sin producto no conforme');
+          if(gsino(`${id}_pell_pnc`)==='si') tabla(['Ref','Causa','Cant','¿Qué se hizo?'],gtbl(`t-${id}-pell-pnc`));
+          await fotos(document.querySelector(`.fgrid[data-fid="f_${id}_pell"]`));
+        }
+      });
+    }
+
+    // Papa DAF, PC4, PC6
+    for(const linea of ['daf','pc4','pc6']) {
+      const L = linea.toUpperCase();
+      check(12); titulo(`Papa — Línea ${L}`,1);
+      campo('Tipo de papa', gv(linea+'_tipo')); campo('T° cuarto', gv(linea+'_temp')+' °C');
+      campo('Mezclas de papa','',gsino(linea+'_mezcla'),'Sin mezclas de papa'); if(gsino(linea+'_mezcla')==='si') tabla(['Tipos','Proporción','Obs'],gtbl('t-'+linea+'-mezcla'));
+      campo('Papa guacal/bulto','',gsino(linea+'_guacal'),'No se usó papa de guacal/bulto'); if(gsino(linea+'_guacal')==='si') tabla(['Tipo','Cantidad','Lavador'],gtbl('t-'+linea+'-guacal'));
+      campo('Tambores calibrados/limpios','',gsino(linea+'_tambores'),'Sin calibración de tambores'); if(gsino(linea+'_tambores')==='si') tabla(['N°','Limpieza','Resp'],gtbl('t-'+linea+'-tambores'));
+      campo('Limpiezas de tanques','',gsino(linea+'_tanques'),'Sin limpiezas de tanques'); if(gsino(linea+'_tanques')==='si'){ tabla(['Tanque','Tipo','Resp'],gtbl('t-'+linea+'-tanques')); await fotos(document.querySelector(`.fgrid[data-fid="f_${linea}_tanques"]`)); }
+      campo('Bombos limpios','',gsino(linea+'_bombos'),'Sin limpieza de bombos'); if(gsino(linea+'_bombos')==='si') tabla(['Bombo','Ref ant.','Ref nueva'],gtbl('t-'+linea+'-bombos'));
+      campo('Reproceso papa','',gsino(linea+'_reproc'),'Sin reproceso de papa'); if(gsino(linea+'_reproc')==='si') tabla(['Ref','Cant (kg)','Sabor'],gtbl('t-'+linea+'-reproc'));
+      campo('Aceite', gv(linea+'_aceite')+' / '+gv(linea+'_aceite_tipo'));
+      campo('Papa cruda','',gsino(linea+'_cruda'),'Sin papa cruda detectada'); if(gsino(linea+'_cruda')==='si') tabla(['Cant (kg)','Causa','Acción'],gtbl('t-'+linea+'-cruda'));
+      campo('PNC','',gsino(linea+'_pnc'),'Sin producto no conforme'); if(gsino(linea+'_pnc')==='si'){ tabla(['Desc','Causa','Cant','¿Qué se hizo?'],gtbl('t-'+linea+'-pnc')); await fotos(document.querySelector(`.fgrid[data-fid="f_${linea}_pnc"]`)); }
+      const papaRows = gtbl('t-'+linea).filter(r=>r.some(v=>v?.trim()));
+      if(papaRows.length){ titulo(`Registro Línea ${L}`,2); tabla(['Ref','% Sab.','Obs'],papaRows); }
+    }
 
   } else {
     titulo('Recepción de Materia Prima');
