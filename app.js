@@ -14,7 +14,8 @@ const PERSONAS_AREA = {
   empaque: PERSONAS, extruido: PERSONAS, rosquilla: PERSONAS,
   tortillas: PERSONAS, trocillo: PERSONAS,
   daf: PERSONAS, pc4: PERSONAS, pc6: PERSONAS,
-  pellet: PERSONAS, mp: PERSONAS
+  pellet: PERSONAS, mp: PERSONAS,
+  pe_general: PERSONAS
 };
 
 const SECCIONES_PE = ['extruido','rosquilla','tortillas','trocillo','daf','pc4','pc6','pellet'];
@@ -263,22 +264,52 @@ function verFoto(src) {
 }
 
 /* ══════ RESPONSABLES ══════ */
-function toggleRespMenu(id) {
-  document.querySelectorAll('.resp-menu.show').forEach(m => { if(m.id !== id) m.classList.remove('show'); });
-  const menu = document.getElementById(id);
-  if(!menu) return;
-  // Position using fixed coordinates relative to viewport
-  const btn = menu.previousElementSibling;
-  if(btn) {
-    const r = btn.getBoundingClientRect();
-    menu.style.top  = (r.bottom + 4) + 'px';
-    menu.style.left = r.left + 'px';
+// Single floating dropdown portal — appended to body, never clipped
+let _respPortal = null;
+function toggleRespMenu(menuId) {
+  // Close if same menu clicked twice
+  if(_respPortal && _respPortal.dataset.src === menuId) {
+    _respPortal.remove(); _respPortal = null; return;
   }
-  menu.classList.toggle('show');
+  // Remove previous portal
+  if(_respPortal) { _respPortal.remove(); _respPortal = null; }
+
+  const menu = document.getElementById(menuId);
+  if(!menu) return;
+  const btn = menu.previousElementSibling;
+  if(!btn) return;
+
+  // Clone menu items into a portal div attached to body
+  const portal = document.createElement('div');
+  portal.className = 'resp-menu show';
+  portal.dataset.src = menuId;
+  portal.innerHTML = menu.innerHTML;
+
+  // Position
+  const r = btn.getBoundingClientRect();
+  portal.style.top  = (r.bottom + window.scrollY + 3) + 'px';
+  portal.style.left = r.left + 'px';
+  portal.style.position = 'absolute';
+  portal.style.zIndex   = '9999';
+  portal.style.minWidth = Math.max(r.width, 220) + 'px';
+
+  // Wire up clicks to original handlers
+  portal.querySelectorAll('.resp-menu-item').forEach((item, i) => {
+    const orig = menu.querySelectorAll('.resp-menu-item')[i];
+    if(orig) item.onclick = orig.onclick;
+  });
+
+  document.body.appendChild(portal);
+  _respPortal = portal;
 }
+
+// Close portal on outside click
 document.addEventListener('click', e => {
-  if(!e.target.closest('.resp-drop')) document.querySelectorAll('.resp-menu.show').forEach(m => m.classList.remove('show'));
+  if(_respPortal && !e.target.closest('.resp-add') && !e.target.closest('[data-src]')) {
+    _respPortal.remove(); _respPortal = null;
+  }
 });
+// resp-menu click-outside handled in toggleRespMenu
 
 function agregarResp(tagsId, nombre, menuId) {
   const tags = document.getElementById(tagsId);
@@ -290,6 +321,9 @@ function agregarResp(tagsId, nombre, menuId) {
   tag.innerHTML = `${nombre}<button onclick="this.parentElement.remove();autoSave()" title="Quitar">×</button>`;
   tags.appendChild(tag);
   document.getElementById(menuId)?.classList.remove('show');
+  if(window._respPortal) { window._respPortal.remove(); window._respPortal = null; }
+  // sync _respPortal reference
+  if(typeof _respPortal !== 'undefined' && _respPortal) { _respPortal.remove(); _respPortal = null; }
   autoSave();
 }
 
