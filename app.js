@@ -861,101 +861,312 @@ function renderEmpaque() {
    FORMULARIO PROCESOS
 ══════════════════════════════════════════════ */
 
+
 function renderPE() {
   const c = document.getElementById('form-content');
 
-  // ── Helper: sección de línea de Extruido ──
-  function secExtrudido(n) {
-    const key = `ext${n}`;
-    return sec(`ext-l${n}`, '⚙️', `Extruido — Línea ${n}`,
-      mkResp(`extruido`, `Responsable(s) Línea ${n}`) + `
-      ${preg(1, `¿La Línea ${n} operó durante el turno?`, `${key}_opera`,
-        // ── SI operó ──
-        `<div class="nota-info" style="margin-bottom:10px">Complete la información de operación de la línea</div>
-
-        <div class="pregunta">
-          <div class="preg-label"><span class="pnum">a</span>¿Qué extrusor se trabajó en esta línea?</div>
-          <textarea class="rdet" data-campo="${key}_extrusor" placeholder="Ej. Extrusor 2..." oninput="autoSave()"></textarea>
-        </div>
-
-        ${preg('b','¿Se hizo limpieza de extrusores?',`${key}_limp_ext`,
-          tbl(`t-${key}-limp`,['Extrusor limpiado','Tipo de limpieza','Observaciones'],1)
-        )}
-
-        <div class="pregunta">
-          <div class="preg-label"><span class="pnum">c</span>¿Qué productos salieron durante el turno?</div>
-          ${tbl(`t-${key}-prod`,['Referencia','Cantidad producida','Observaciones'],2)}
-        </div>
-
-        ${preg('d','¿Se agregaron otros ingredientes a la mezcla? (papa, extruido, rosquilla)',`${key}_ingred`,
-          tbl(`t-${key}-ingred`,['Ingrediente','Cantidad (kg)','Motivo'],1)
-        )}
-
-        ${preg('e','¿Las densidades del producto terminado cumplen con los parámetros?',`${key}_dens`,
-          ``,
-          `<textarea class="rdet" data-campo="${key}_dens_mot" placeholder="¿Por qué no cumplen? Describa la desviación..." oninput="autoSave()"></textarea>`
-        )}
-
-        ${preg('f','¿Las dimensiones del producto terminado cumplen con los parámetros?',`${key}_dim`,
-          ``,
-          `<textarea class="rdet" data-campo="${key}_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave()"></textarea>
-          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de lo que no cumple</div>
-          ${foto('Adjuntar fotos de incumplimientos','Solo fotos de desviaciones',`f_${key}_dim`)}`
-        )}
-
-        ${preg('g','¿Salió producto no conforme durante el turno en esta línea?',`${key}_pnc`,
-          `${tbl(`t-${key}-pnc`,['Referencia','Descripción','Causa','Cantidad'],1)}
-          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos del PNC</div>
-          ${foto('Adjuntar fotos del PNC','Evidencia fotográfica',`f_${key}_pnc`)}`
-        )}`,
-
-        // ── NO operó ──
-        `${preg('a','¿Se hizo limpieza de la línea?',`${key}_limp_paro`,
-          `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se hizo? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
-          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
-          ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',`f_${key}_limp`)}`
-        )}`
-      )}
-    `);
+  function noOperoBloque(key, fid) {
+    return preg('a','¿Se hizo limpieza de la línea?',`${key}_limp_paro`,
+      `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
+       <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
+       ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
+      `<div style="background:var(--gris);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--txt-s)">No se realizó limpieza en esta línea durante el turno.</div>`
+    );
   }
 
-  // ── Sección Papa (reutilizada) ──
+  function secExtruido(n) {
+    const k = `ext${n}`;
+    return sec(`ext-l${n}`, '⚙️', `Extruido — Línea ${n}`,
+      mkResp('extruido', `Responsable(s) Extruido Línea ${n}`) +
+      preg(1, `¿La Línea ${n} operó durante el turno?`, `${k}_opera`,
+        `<div class="nota-info">Complete la información de operación</div>
+        <div class="pregunta">
+          <div class="preg-label"><span class="pnum">a</span>¿Qué extrusor se trabajó en esta línea?</div>
+          <textarea class="rdet" data-campo="${k}_extrusor" placeholder="Ej. Extrusor 2..." oninput="autoSave()"></textarea>
+        </div>
+        ${preg('b','¿Se hizo limpieza de extrusores?',`${k}_limp_ext`,
+          tbl(`t-${k}-limp`,['Extrusor limpiado','Tipo de limpieza','Observaciones'],1)
+        )}
+        <div class="pregunta">
+          <div class="preg-label"><span class="pnum">c</span>¿Qué productos salieron durante el turno?</div>
+          ${tbl(`t-${k}-prod`,['Referencia','Observaciones'],2)}
+        </div>
+        ${preg('d','¿Se agregaron otros ingredientes a la mezcla? (papa, extruido, rosquilla)',`${k}_ingred`,
+          tbl(`t-${k}-ingred`,['Ingrediente','Cantidad (kg)','Motivo'],1)
+        )}
+        ${preg('e','¿Las densidades del producto terminado cumplen con los parámetros?',`${k}_dens`,``,
+          `<textarea class="rdet" data-campo="${k}_dens_mot" placeholder="¿Por qué no cumplen? Describa la desviación..." oninput="autoSave()"></textarea>
+           <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de la desviación</div>
+           ${foto('Adjuntar foto','Foto si no cumple',`f_${k}_dens`)}`
+        )}
+        ${preg('f','¿Las dimensiones del producto terminado cumplen con los parámetros?',`${k}_dim`,``,
+          `<textarea class="rdet" data-campo="${k}_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave()"></textarea>
+           <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de lo que no cumple</div>
+           ${foto('Adjuntar fotos de incumplimientos','Fotos de desviaciones',`f_${k}_dim`)}`
+        )}
+        ${preg('g','¿Salió producto no conforme (PNC) durante el turno en esta línea?',`${k}_pnc`,
+          tbl(`t-${k}-pnc`,['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
+        )}`,
+        noOperoBloque(k, `f_${k}_limp`)
+      )
+    );
+  }
+
   function secPapa(linea) {
     const L = linea.toUpperCase();
-    return sec(linea, '🥔', `Papa — Línea ${L}`, mkResp(linea, `Responsable(s) Línea ${L}`) + `
+    return sec(linea,'🥔',`Papa — Línea ${L}`, mkResp(linea,`Responsable(s) Línea ${L}`) + `
       <div class="grid2" style="margin-bottom:12px">
         <div><div class="preg-label"><span class="pnum">1</span>Tipo de papa</div>
           <select class="rinp" data-campo="${linea}_tipo" onchange="autoSave()"><option value="">Seleccione...</option><option>Cachirry</option><option>Pareja</option><option>R12</option><option>Mezcla</option></select></div>
         <div><div class="preg-label"><span class="pnum">2</span>T° cuarto de papa</div>
           <input class="rinp" type="text" data-campo="${linea}_temp" placeholder="°C" oninput="autoSave()"></div>
       </div>
-      ${preg(3,'¿Se realizaron mezclas de papa?',linea+'_mezcla', tbl('t-'+linea+'-mezcla',['Tipos mezclados','Proporción','Observaciones']))}
-      ${preg(4,'¿Se utilizó papa de guacal o de bulto?',linea+'_guacal', tbl('t-'+linea+'-guacal',['Tipo','Cantidad (kg)','Lavador activado']))}
-      ${preg(5,'¿Se calibraron y limpiaron tambores?',linea+'_tambores', tbl('t-'+linea+'-tambores',['N° Tambor','Tipo de limpieza','Responsable']))}
+      ${preg(3,'¿Se realizaron mezclas de papa?',linea+'_mezcla',tbl('t-'+linea+'-mezcla',['Tipos mezclados','Proporción','Observaciones']))}
+      ${preg(4,'¿Se utilizó papa de guacal o de bulto?',linea+'_guacal',tbl('t-'+linea+'-guacal',['Tipo','Cantidad (kg)','Lavador activado']))}
+      ${preg(5,'¿Se calibraron y limpiaron tambores?',linea+'_tambores',tbl('t-'+linea+'-tambores',['N° Tambor','Tipo de limpieza','Responsable']))}
       ${preg(6,'¿Se realizaron limpiezas de tanques?',linea+'_tanques',
         tbl('t-'+linea+'-tanques',['Tanque','Tipo de limpieza','Responsable']) +
-        `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos limpiezas de tanques (obligatorio)</div>
+        `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos limpiezas de tanques</div>
         ${foto('Foto de cada tanque limpiado','Foto obligatoria','f_'+linea+'_tanques')}`
       )}
-      ${preg(7,'¿Se limpiaron bombos para cambio de referencia?',linea+'_bombos', tbl('t-'+linea+'-bombos',['Bombo','Ref. anterior','Ref. nueva']))}
-      ${preg(8,'¿Se reprocesó papa de otro sabor?',linea+'_reproc', tbl('t-'+linea+'-reproc',['Referencia','Cantidad (kg)','Sabor original']))}
+      ${preg(7,'¿Se limpiaron bombos para cambio de referencia?',linea+'_bombos',tbl('t-'+linea+'-bombos',['Bombo','Ref. anterior','Ref. nueva']))}
+      ${preg(8,'¿Se reprocesó papa de otro sabor?',linea+'_reproc',tbl('t-'+linea+'-reproc',['Referencia','Cantidad (kg)','Sabor original']))}
       <div class="pregunta">
-        <div class="preg-label"><span class="pnum">9</span>Tipo de aceite y presentación</div>
+        <div class="preg-label"><span class="pnum">9</span>Tipo de aceite</div>
         <div class="grid2">
           <select class="rinp" data-campo="${linea}_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option></select>
           <select class="rinp" data-campo="${linea}_aceite_tipo" onchange="autoSave()"><option value="">Seleccione...</option><option>Oleína</option><option>Aceite Blend</option></select>
         </div>
       </div>
-      ${preg(10,'¿Se detectó papa cruda?',linea+'_cruda', tbl('t-'+linea+'-cruda',['Cantidad (kg)','Causa','Acción tomada']))}
+      ${preg(10,'¿Se detectó papa cruda?',linea+'_cruda',tbl('t-'+linea+'-cruda',['Cantidad (kg)','Causa','Acción tomada']))}
       ${preg(11,'¿Hubo producto no conforme?',linea+'_pnc',
-        tbl('t-'+linea+'-pnc',['Descripción','Causa','Cantidad','Disposición']) +
-        `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos PNC — Línea ${L}</div>
-        ${foto('Adjuntar evidencia fotográfica','Foto del PNC','f_'+linea+'_pnc')}`
+        tbl('t-'+linea+'-pnc',['Descripción','Causa','Cantidad','¿Qué se hizo?']) +
+        `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos PNC</div>
+        ${foto('Adjuntar evidencia','Foto del PNC','f_'+linea+'_pnc')}`
       )}
       <div class="sep"></div>
       ${tbl('t-'+linea,['Referencia','% Saborización','Observaciones'],3)}
     `);
   }
+
+  function bloquesPellet(k) {
+    return `
+      ${preg('A','¿Las temperaturas superaron los 180°C?',`${k}_pell_temp`,
+        tbl(`t-${k}-pell-temp`,['T° registrada','Hora','Acción tomada'],1)
+      )}
+      ${preg('B','¿Las densidades presentaron desviaciones?',`${k}_pell_dens`,
+        tbl(`t-${k}-pell-dens`,['Referencia','Densidad registrada','Parámetro','Causa'],1)
+      )}
+      ${preg('C','¿Se generó producto no conforme?',`${k}_pell_pnc`,
+        tbl(`t-${k}-pell-pnc`,['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
+      )}
+      <div class="pregunta">
+        <div class="preg-label"><span class="pnum">D</span>Acciones correctivas del turno</div>
+        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa las acciones implementadas..." oninput="autoSave()"></textarea>
+      </div>
+      ${foto('Fotos de PNC / tanque','Evidencia fotográfica',`f_${k}_pell`)}`;
+  }
+
+  function secLineaFlex(id, icon, nombre, opPrincipal, pregsPrincipal) {
+    const k = id;
+    const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
+    const pelletBtns = PELLETS.map(p =>
+      `<button class="rbtn" style="font-size:11px" onclick="selProceso('${k}','pellet','${p}')">${p}</button>`
+    ).join('');
+    return sec(id, icon, nombre, mkResp(k, `Responsable(s) ${nombre}`) + `
+      ${preg(1, `¿La línea de ${nombre} operó durante el turno?`, `${k}_opera`,
+        `<div class="pregunta">
+          <div class="preg-label"><span class="pnum">a</span>¿Qué se procesó en esta línea?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <button class="rbtn" id="btn-${k}-princ" onclick="selProceso('${k}','principal')">${opPrincipal}</button>
+            <div style="width:100%;font-size:11px;color:var(--txt-s);margin:4px 0 2px">Pellet:</div>
+            ${pelletBtns}
+          </div>
+          <input type="hidden" data-campo="${k}_proceso_tipo" id="${k}_proceso_tipo">
+          <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
+        </div>
+        <div id="bloque-${k}-princ" style="display:none">
+          <div class="nota-info" style="font-size:11px">Procesando: <strong>${opPrincipal}</strong></div>
+          ${pregsPrincipal}
+        </div>
+        <div id="bloque-${k}-pellet" style="display:none">
+          <div class="nota-info" style="font-size:11px">Procesando pellet: <strong id="lbl-${k}-pellet">—</strong></div>
+          ${tbl(`t-${k}-pell-prod`,['Referencia','% Saborización','Observaciones'],2)}
+          ${bloquesPellet(k)}
+        </div>`,
+        noOperoBloque(k, `f_${k}_limp`)
+      )}
+    `);
+  }
+
+  const pregsTortilla = `
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">a</span>¿Qué referencias salieron?</div>
+      ${tbl('t-tort-prod',['Referencia','% Saborización','Observaciones'],2)}
+    </div>
+    ${preg('b','¿Los tiempos de reposo se están cumpliendo?','tort_reposo',``,
+      tbl('t-tort-reposo',['Referencia','Tiempo real','Tiempo requerido','Motivo'],1)
+    )}
+    ${preg('c','¿Se adicionó maíz del tanque sedimentador de finos?','tort_maiz',
+      tbl('t-tort-maiz',['Cantidad (kg)','Observaciones'],1)
+    )}
+    ${preg('d','¿Se garantizó la selección de PNC a la salida del horno?','tort_sel_horno',
+      `<textarea class="rdet" data-campo="tort_sel_horno_det" placeholder="Describa cómo se realizó..." oninput="autoSave()"></textarea>`,
+      `<textarea class="rdet" data-campo="tort_sel_horno_no" placeholder="¿Por qué no se garantizó?" oninput="autoSave()"></textarea>`
+    )}
+    ${preg('e','¿Se garantizó la selección de PNC a la salida del freedor?','tort_sel_freed',
+      `<textarea class="rdet" data-campo="tort_sel_freed_det" placeholder="Describa cómo se realizó..." oninput="autoSave()"></textarea>`,
+      `<textarea class="rdet" data-campo="tort_sel_freed_no" placeholder="¿Por qué no se garantizó?" oninput="autoSave()"></textarea>`
+    )}
+    ${foto('📷 Fotos selección PNC — horno y freedor','Adjuntar fotos de ambos puntos','f_tort_sel')}
+    ${preg('f','¿Hubo producto no conforme?','tort_pnc',
+      tbl('t-tort-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
+    )}`;
+
+  const pregsTrocillo = `
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">a</span>Registro de producción</div>
+      ${tbl('t-trocillo',['Referencia','Peso Crudo','Peso Freído','T. Reposo','T. Freído','Responsable'])}
+    </div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div><div class="preg-label"><span class="pnum">b</span>Tipo de aceite</div>
+        <select class="rinp" data-campo="troc_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option><option>Mezcla</option></select></div>
+      <div><div class="preg-label"><span class="pnum">c</span>¿Hubo exportación?</div>
+        <div class="sino-row" data-key="troc_exp">
+          <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
+          <button class="rbtn" onclick="siNo(this,'no')">No</button>
+        </div>
+        <div class="cond-si" style="display:none">${tbl('t-troc-exp',['Referencia','Lote','Destino'],1)}</div>
+      </div>
+    </div>
+    ${preg('d','¿Se realizaron reprocesos?','troc_rep',tbl('t-troc-rep',['Tipo','Cantidad (kg)','Motivo']))}
+    ${preg('e','¿Las dimensiones presentaron incumplimientos?','troc_dim',``,
+      `<textarea class="rdet" data-campo="troc_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave()"></textarea>
+       ${foto('Foto si no cumple','Solo si hubo incumplimiento','f_troc_dim')}`
+    )}
+    ${preg('f','¿Las densidades presentaron desviaciones?','troc_dens',``,
+      tbl('t-troc-dens',['Referencia','Densidad','Parámetro','Causa'],1)
+    )}
+    ${preg('g','¿Hubo algún equipo con falla?','troc_falla',
+      tbl('t-troc-falla',['Equipo','Descripción de la falla','Acción tomada'])
+    )}
+    <div class="sep"></div>
+    <div class="preg-label" style="margin-bottom:8px"><strong>Dimensiones antes del reposo</strong></div>
+    <div class="twrap"><table class="reg" id="t-troc-antes">
+      <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+      </tbody>
+    </table></div>
+    <div class="preg-label" style="margin:12px 0 8px"><strong>Dimensiones después del freído</strong></div>
+    <div class="twrap"><table class="reg" id="t-troc-despues">
+      <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+      </tbody>
+    </table></div>`;
+
+  const pregsPelletEst = `
+    ${preg('a','¿Se realizaron limpiezas?','pell_limp',
+      `<select class="rinp" data-campo="pell_limp_tipo" style="margin-bottom:6px" onchange="autoSave()"><option>Profunda</option><option>Parcial</option><option>Cambio de referencia</option></select>
+       <textarea class="rdet" data-campo="pell_limp_det" placeholder="Describa las limpiezas..." oninput="autoSave()"></textarea>`
+    )}
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">b</span>Tipo de aceite</div>
+      <select class="rinp" data-campo="pell_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option></select>
+    </div>
+    ${preg('c','¿Las temperaturas superaron los 180°C?','pell_temp',tbl('t-pell-temp',['Referencia','T° registrada','Hora','Acción']))}
+    ${preg('d','¿Las densidades presentaron desviaciones?','pell_dens',tbl('t-pell-dens',['Referencia','Densidad','Parámetro','Causa']))}
+    ${preg('e','¿Se realizaron mezclas de producto?','pell_mezcla',tbl('t-pell-mezcla',['Productos mezclados','Proporción','Obs']))}
+    ${preg('f','¿Se generó producto no conforme?','pell_pnc',tbl('t-pell-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?']))}
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">g</span>TPM del turno</div>
+      <input class="rinp" type="text" data-campo="pell_tpm" placeholder="Registro TPM" oninput="autoSave()">
+    </div>
+    <div class="sep"></div>
+    ${tbl('t-pellet',['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'])}
+    ${foto('Fotos de tanque y PNC','Fotos obligatorias','f_pellet_fotos')}`;
+
+  const secRos = sec('rosquilla','🔵','Rosquilla', mkResp('rosquilla','Responsable(s) Rosquilla') +
+    preg(1,'¿La línea de Rosquilla operó durante el turno?','ros_opera',
+      `<div class="nota-info">Complete la información de producción</div>
+      <div class="pregunta">
+        <div class="preg-label"><span class="pnum">a</span>Tabla de producción del turno</div>
+        ${tbl('t-rosquilla',['Referencia','# Batches','Corte crudo','Peso final','T° Amb.','T° Masa','T. Reposo','Humedad %','T° Cuarto','Amasadores','Horneros'],2)}
+      </div>
+      <div class="sep"></div>
+      <div class="pregunta">
+        <div class="preg-label"><span class="pnum">b</span>Formulación utilizada — ingrediente y cantidad</div>
+        ${tbl('t-ros-form',['Ingrediente','Cantidad (kg/g)'],3)}
+      </div>
+      <div class="pregunta">
+        <div class="preg-label"><span class="pnum">c</span>Queso utilizado</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="rbtn" onclick="selQueso(this,'dona-rosa')">Doña Rosa</button>
+          <button class="rbtn" onclick="selQueso(this,'colanta')">Colanta</button>
+          <button class="rbtn" onclick="selQueso(this,'otro')">Otro proveedor</button>
+        </div>
+        <input type="hidden" data-campo="ros_queso_prov" id="ros_queso_prov">
+        <div id="ros-queso-otro" style="display:none;margin-bottom:8px">
+          <input class="rinp" type="text" data-campo="ros_queso_otro_nombre" placeholder="¿Cuál proveedor?" oninput="autoSave()">
+        </div>
+        <input class="rinp" type="text" data-campo="ros_queso_kg" placeholder="Cantidad utilizada (kg)" style="margin-top:4px" oninput="autoSave()">
+      </div>
+      ${preg('d','¿Se liberó queso durante el turno?','ros_queso_lib',
+        tbl('t-ros-queso',['Queso liberado','Cantidad (kg)','PNC generado'],1)
+      )}
+      ${preg('e','¿Faltó alguna materia prima durante el turno?','ros_mp',
+        tbl('t-ros-mp',['Materia prima faltante','Impacto en proceso','Acción tomada'],1)
+      )}
+      <div class="pregunta">
+        <div class="preg-label"><span class="pnum">f</span>Estado de los hornos durante el turno</div>
+        <div class="grid2" style="margin-bottom:8px">
+          <div><label style="font-size:12px;color:var(--txt-s)">Hornos funcionales</label>
+            <input class="rinp" type="text" data-campo="ros_hornos_func" placeholder="Ej. 4 de 6" oninput="autoSave()"></div>
+          <div><label style="font-size:12px;color:var(--txt-s)">Hornos en operación</label>
+            <input class="rinp" type="text" data-campo="ros_hornos_op" placeholder="Ej. 3" oninput="autoSave()"></div>
+        </div>
+        <textarea class="rdet" data-campo="ros_hornos_nov" placeholder="Novedades en hornos (fallas, mantenimientos, otros)..." oninput="autoSave()"></textarea>
+        <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de novedades en hornos</div>
+        ${foto('Fotos de hornos','Adjuntar fotos de lo evidenciado','f_ros_hornos')}
+      </div>
+      <div class="pregunta">
+        <div class="preg-label"><span class="pnum">g</span>¿Cómo salió el producto durante el turno?</div>
+        <div class="sino-row" data-key="ros_prod_conf">
+          <button class="rbtn" onclick="siNo(this,'si')">Conforme</button>
+          <button class="rbtn" onclick="siNo(this,'no')">No conforme</button>
+        </div>
+        <div class="cond-no" style="display:none">
+          <div style="background:var(--rojo-cl);border:1px solid var(--rojo-b);border-radius:var(--r);padding:12px;margin-top:8px">
+            <textarea class="rdet" data-campo="ros_nc_accion" placeholder="¿Qué se hizo con el producto no conforme?" oninput="autoSave()" style="margin-bottom:10px"></textarea>
+            <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--txt)">¿Se logró que quedara conforme?</div>
+            <div class="sino-row" data-key="ros_nc_logro">
+              <button class="rbtn" onclick="siNo(this,'si')">Sí, quedó conforme</button>
+              <button class="rbtn" onclick="siNo(this,'no')">No — salió como PNC</button>
+            </div>
+            <div class="cond-no" style="display:none">
+              ${tbl('t-ros-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)}
+            </div>
+          </div>
+        </div>
+      </div>
+      ${preg('h','¿Los parámetros del producto están dentro de la conformidad?','ros_params',``,
+        `<textarea class="rdet" data-campo="ros_params_det" placeholder="¿Cuáles parámetros no están conformes y por qué?" oninput="autoSave()"></textarea>
+         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de parámetros no conformes</div>
+         ${foto('Adjuntar foto','Evidencia de parámetros fuera de spec','f_ros_params')}`
+      )}`,
+      `${preg('a','¿Se hizo limpieza de la línea?','ros_limp_paro',
+        `<textarea class="rdet" data-campo="ros_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
+         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
+         ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica','f_ros_limp')}`,
+        `<div style="background:var(--gris);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--txt-s)">No se realizó limpieza en la línea de Rosquilla.</div>`
+      )}`
+    )
+  );
 
   c.innerHTML = `
   <div class="datos-card">
@@ -965,243 +1176,51 @@ function renderPE() {
     <div class="dato-item"><label>Código</label>
       <input type="text" class="dato-inp" data-campo="codigo" placeholder="Ej. PR-226" oninput="autoSave()"></div>
   </div>
-
-  <!-- ══ EXTRUIDO ══ -->
-  ${secExtrudido(1)} ${secExtrudido(2)} ${secExtrudido(3)}
-
-  <!-- ══ ROSQUILLA ══ -->
-  ${sec('rosquilla','🔵','Rosquilla', mkResp('rosquilla','Responsable(s) Rosquilla') + `
-    ${preg(1,'¿La línea de Rosquilla operó durante el turno?','ros_opera',
-      // ── SI operó ──
-      `<div class="nota-info" style="margin-bottom:10px">Complete la información de producción</div>
-
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">a</span>Registro de producción por referencia</div>
-        ${tbl('t-rosquilla',['Referencia','# Batches','Corte crudo','Peso final','T° Amb.','T° Masa','T. Reposo','Humedad %','T° Cuarto','Amasadores','Horneros'],2)}
-      </div>
-
-      <div class="sep"></div>
-
-      <div class="grid2" style="margin-bottom:12px">
-        <div><div class="preg-label"><span class="pnum">b</span>Formulación utilizada</div>
-          <input class="rinp" type="text" data-campo="ros_form" placeholder="Nombre o código" oninput="autoSave()"></div>
-        <div><div class="preg-label"><span class="pnum">c</span>Queso utilizado</div>
-          <input class="rinp" type="text" data-campo="ros_queso" placeholder="Tipo / proveedor" oninput="autoSave()"></div>
-      </div>
-
-      ${preg('d','¿Se liberó queso durante el turno?','ros_queso_lib',
-        tbl('t-ros-queso',['Queso liberado','Cantidad liberada (kg)','PNC generado'],1)
-      )}
-
-      ${preg('e','¿Faltó alguna materia prima durante el turno?','ros_mp',
-        tbl('t-ros-mp',['Materia prima faltante','Impacto en proceso','Acción tomada'],1)
-      )}
-
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">f</span>Hornos — estado durante el turno</div>
-        <div class="grid2">
-          <div><label style="font-size:12px;color:var(--txt-s)">Hornos funcionales</label>
-            <input class="rinp" type="text" data-campo="ros_hornos_func" placeholder="Ej. 4 de 6" oninput="autoSave()"></div>
-          <div><label style="font-size:12px;color:var(--txt-s)">Hornos en operación</label>
-            <input class="rinp" type="text" data-campo="ros_hornos_op" placeholder="Ej. 3" oninput="autoSave()"></div>
-        </div>
-        <textarea class="rdet" style="margin-top:8px" data-campo="ros_hornos_nov" placeholder="Novedades en hornos (fallas, mantenimientos, otros)..." oninput="autoSave()"></textarea>
-      </div>
-
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">g</span>¿Cómo está saliendo el producto? ¿Qué acción se tomó para corregir producto en mal estado?</div>
-        <textarea class="rdet" data-campo="ros_estado_prod" placeholder="Describa el estado del producto y las acciones correctivas..." oninput="autoSave()"></textarea>
-      </div>
-
-      ${preg('h','¿Salió producto no conforme durante el turno?','ros_pnc',
-        tbl('t-ros-pnc',['Referencia','Causa','Cantidad','Disposición'],1)
-      )}
-
-      ${preg('i','¿Los parámetros del producto están dentro de la conformidad?','ros_params',
-        ``,
-        `<textarea class="rdet" data-campo="ros_params_det" placeholder="¿Qué parámetros no están conformes y por qué?" oninput="autoSave()"></textarea>`
-      )}
-
-      <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de PNC / incumplimientos</div>
-      ${foto('Adjuntar fotos','Solo fotos de lo que no cumplió','f_ros_pnc')}`,
-
-      // ── NO operó ──
-      `${preg('a','¿Se hizo limpieza de la línea?','ros_limp_paro',
-        `<textarea class="rdet" data-campo="ros_limp_paro_det" placeholder="¿Qué limpieza se realizó?" oninput="autoSave()"></textarea>
-        ${foto('Fotos de limpieza','Evidencia fotográfica','f_ros_limp')}`
-      )}`
-    )}
-  `)}
-
-  <!-- ══ TORTILLAS / PELLET ══ -->
-  ${sec('tortillas','🟤','Tortillas y Pellet', mkResp('tortillas','Responsable(s) Tortillas / Pellet') + `
-    <div class="pregunta">
-      <div class="preg-label"><span class="pnum">1</span>¿Qué se procesó en esta línea durante el turno?</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="rbtn" id="btn-tort" onclick="selLinea('tortilla')">Tortilla</button>
-        <button class="rbtn" id="btn-pell" onclick="selLinea('pellet')">Pellet</button>
-        <button class="rbtn" id="btn-ambos" onclick="selLinea('ambos')">Ambos</button>
-        <button class="rbtn" id="btn-nada" onclick="selLinea('nada')">No operó</button>
-      </div>
-      <input type="hidden" data-campo="tort_linea_tipo" id="tort_linea_tipo">
-    </div>
-
-    <!-- Tortilla -->
-    <div id="bloque-tortilla" style="display:none">
-      <div class="sep"></div>
-      <div style="background:var(--azul-cl);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--azul-m)">🟤 TORTILLA</div>
-
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">a</span>¿Qué referencias salieron?</div>
-        ${tbl('t-tort-prod',['Referencia','% Saborización','Observaciones'],2)}
-      </div>
-
-      ${preg('b','¿Los tiempos de reposo se están cumpliendo?','tort_reposo',
-        ``,
-        `${tbl('t-tort-reposo',['Referencia','Tiempo real','Tiempo requerido','Motivo incumplimiento'],1)}`
-      )}
-
-      ${preg('c','¿Se adicionó maíz del tanque sedimentador de finos?','tort_maiz',
-        tbl('t-tort-maiz',['Cantidad utilizada (kg)','Observaciones'],1)
-      )}
-
-      ${preg('d','¿Se garantizó la selección de PNC a la salida del horno?','tort_sel_horno',
-        `<textarea class="rdet" data-campo="tort_sel_horno_det" placeholder="Describa cómo se realizó la selección..." oninput="autoSave()"></textarea>`,
-        `<textarea class="rdet" data-campo="tort_sel_horno_no" placeholder="¿Por qué no se garantizó? ¿Qué pasó?" oninput="autoSave()"></textarea>`
-      )}
-
-      ${preg('e','¿Se garantizó la selección de PNC a la salida del freedor?','tort_sel_freed',
-        `<textarea class="rdet" data-campo="tort_sel_freed_det" placeholder="Describa cómo se realizó la selección..." oninput="autoSave()"></textarea>`,
-        `<textarea class="rdet" data-campo="tort_sel_freed_no" placeholder="¿Por qué no se garantizó? ¿Qué pasó?" oninput="autoSave()"></textarea>`
-      )}
-
-      <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos — selección PNC salida horno y freedor</div>
-      ${foto('Adjuntar fotos de selección PNC','Fotos de horno y freedor','f_tort_sel')}
-
-      ${preg('f','¿Hubo producto no conforme?','tort_pnc',
-        tbl('t-tort-pnc',['Referencia','Causa','Cantidad','Disposición'],1)
-      )}
-
-      ${preg('g','¿Los parámetros del producto están dentro de la conformidad?','tort_params',
-        ``,
-        `<textarea class="rdet" data-campo="tort_params_det" placeholder="¿Qué parámetros no cumplen y por qué?" oninput="autoSave()"></textarea>`
-      )}
-    </div>
-
-    <!-- Pellet -->
-    <div id="bloque-pellet" style="display:none">
-      <div class="sep"></div>
-      <div style="background:var(--naranja-cl);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--naranja)">🔶 PELLET</div>
-
-      ${preg('a','¿Se realizaron limpiezas?','pell_limp',
-        `<select class="rinp" data-campo="pell_limp_tipo" style="margin-bottom:6px" onchange="autoSave()"><option>Profunda</option><option>Parcial</option><option>Cambio de referencia</option></select>
-        <textarea class="rdet" data-campo="pell_limp_det" placeholder="Describa las limpiezas..." oninput="autoSave()"></textarea>`
-      )}
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">b</span>Tipo de aceite</div>
-        <select class="rinp" data-campo="pell_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option></select>
-      </div>
-      ${preg('c','¿Las temperaturas superaron los 180°C?','pell_temp', tbl('t-pell-temp',['Referencia','T° registrada','Hora','Acción tomada']))}
-      ${preg('d','¿Las densidades presentaron desviaciones?','pell_dens', tbl('t-pell-dens',['Referencia','Densidad','Parámetro','Causa']))}
-      ${preg('e','¿Se realizaron mezclas de producto?','pell_mezcla', tbl('t-pell-mezcla',['Productos mezclados','Proporción','Observaciones']))}
-      ${preg('f','¿Se realizaron reprocesos?','pell_reproc', tbl('t-pell-reproc',['Referencia','Tipo','Cantidad (kg)']))}
-      ${preg('g','¿Hay materia prima con fechas cortas?','pell_fechas', tbl('t-pell-fechas',['Materia prima','Fecha vencimiento','Cantidad']))}
-      ${preg('h','¿Se generó producto no conforme (PNC)?','pell_pnc', tbl('t-pell-pnc',['Referencia','Descripción','Causa','Disposición']))}
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">i</span>Acciones correctivas del turno</div>
-        <textarea class="rdet" data-campo="pell_acc" placeholder="Describa las acciones implementadas..." oninput="autoSave()"></textarea>
-      </div>
-      <div class="pregunta">
-        <div class="preg-label"><span class="pnum">j</span>TPM del turno</div>
-        <input class="rinp" type="text" data-campo="pell_tpm" placeholder="Registro TPM" oninput="autoSave()">
-      </div>
-      <div class="sep"></div>
-      ${tbl('t-pellet',['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'])}
-      <div style="margin-top:10px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de tanque y PNC</div>
-      ${foto('Fotos de tanque y producto no conforme','Solo fotos de tanque y PNC','f_pellet_fotos')}
-    </div>
-
-    <!-- No operó -->
-    <div id="bloque-nada" style="display:none">
-      ${preg('a','¿Se hizo limpieza de la línea?','tort_limp_paro',
-        `<textarea class="rdet" data-campo="tort_limp_paro_det" placeholder="¿Qué limpieza se realizó?" oninput="autoSave()"></textarea>
-        ${foto('Fotos de limpieza','Evidencia fotográfica','f_tort_limp')}`
-      )}
-    </div>
-  `)}
-
-  <!-- ══ TROCILLO ══ -->
-  ${sec('trocillo','🟧','Trocillo', mkResp('trocillo','Responsable(s) Trocillo') + `
-    <div class="grid2" style="margin-bottom:12px">
-      <div><div class="preg-label"><span class="pnum">1</span>Tipo de aceite</div>
-        <select class="rinp" data-campo="troc_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option><option>Mezcla</option></select></div>
-      <div><div class="preg-label"><span class="pnum">2</span>¿Hubo exportación?</div>
-        <div class="sino-row" data-key="troc_exp">
-          <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
-          <button class="rbtn" onclick="siNo(this,'no')">No</button>
-        </div>
-        <div class="cond-si" style="display:none">${tbl('t-troc-exp',['Referencia','Lote','Destino / Cliente'],1)}</div>
-      </div>
-    </div>
-    ${preg(3,'¿Se realizaron reprocesos?','troc_rep', tbl('t-troc-rep',['Tipo de reproceso','Cantidad (kg)','Motivo']))}
-    ${preg(4,'¿El proceso arrancó con mezcla de aceite?','troc_mezcla',`<textarea class="rdet" data-campo="troc_mezcla_det" placeholder="Describa la mezcla utilizada..." oninput="autoSave()"></textarea>`)}
-    ${preg(5,'¿Las dimensiones presentaron incumplimientos?','troc_dim',
-      tbl('t-troc-dim',['Variable','Valor registrado','Especificación','Acción']) +
-      `<div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto si no cumple</div>${foto('Foto de dimensiones','Solo si hubo incumplimiento','f_troc_dim')}`
-    )}
-    ${preg(6,'¿Las densidades presentaron desviaciones?','troc_dens', tbl('t-troc-dens',['Referencia','Densidad','Parámetro','Causa']))}
-    ${preg(7,'¿Hubo algún equipo con falla?','troc_falla', tbl('t-troc-falla',['Equipo','Descripción de la falla','Acción tomada']))}
-    <div class="sep"></div>
-    ${tbl('t-trocillo',['Referencia','Peso Crudo','Peso Freído','T. Reposo','T. Freído','Responsable'])}
-    <div class="sep"></div>
-    <div class="preg-label" style="margin-bottom:8px"><strong>Dimensiones antes del reposo</strong></div>
-    <div class="twrap"><table class="reg" id="t-troc-antes">
-      <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
-      <tbody>
-        <tr><td style="font-weight:600;background:var(--gris)">Largo</td>${'<td><input type="text" oninput="autoSave()"></td>'.repeat(5)}</tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td>${'<td><input type="text" oninput="autoSave()"></td>'.repeat(5)}</tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td>${'<td><input type="text" oninput="autoSave()"></td>'.repeat(5)}</tr>
-      </tbody>
-    </table></div>
-    <div class="preg-label" style="margin:12px 0 8px"><strong>Dimensiones después del freído</strong></div>
-    <div class="twrap"><table class="reg" id="t-troc-despues">
-      <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
-      <tbody>
-        <tr><td style="font-weight:600;background:var(--gris)">Largo</td>${'<td><input type="text" oninput="autoSave()"></td>'.repeat(5)}</tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td>${'<td><input type="text" oninput="autoSave()"></td>'.repeat(5)}</tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td>${'<td><input type="text" oninput="autoSave()"></td>'.repeat(5)}</tr>
-      </tbody>
-    </table></div>
-  `)}
-
-  <!-- ══ PAPA DAF / PC4 / PC6 ══ -->
+  ${secExtruido(1)} ${secExtruido(2)} ${secExtruido(3)}
+  ${secRos}
+  ${secLineaFlex('linea-tort','🟤','Tortilla','Tortilla',pregsTortilla)}
+  ${secLineaFlex('linea-troc','🟧','Trocillo','Trocillo',pregsTrocillo)}
+  ${secLineaFlex('linea-pell','🔶','Pellet','Pellet estándar',pregsPelletEst)}
   ${secPapa('daf')} ${secPapa('pc4')} ${secPapa('pc6')}`;
 
   document.querySelector('[data-campo="fecha"]').valueAsDate = new Date();
-
-  // Restore tortilla/pellet selection if data already saved
-  const tipoLinea = document.querySelector('[data-campo="tort_linea_tipo"]')?.value;
-  if(tipoLinea) selLinea(tipoLinea);
 }
 
-function selLinea(tipo) {
-  const bloques = ['tortilla','pellet','ambos','nada'];
-  // Reset all buttons
-  bloques.forEach(t => {
-    const btn = document.getElementById('btn-' + t);
-    if(btn) btn.classList.remove('si');
-  });
-  // Show relevant blocks
-  document.getElementById('bloque-tortilla').style.display = (tipo==='tortilla'||tipo==='ambos') ? 'block' : 'none';
-  document.getElementById('bloque-pellet').style.display   = (tipo==='pellet'  ||tipo==='ambos') ? 'block' : 'none';
-  document.getElementById('bloque-nada').style.display     = tipo==='nada'     ? 'block' : 'none';
-  const btn = document.getElementById('btn-' + tipo);
-  if(btn) btn.classList.add('si');
-  const inp = document.querySelector('[data-campo="tort_linea_tipo"]');
+function selQueso(btn, tipo) {
+  const container = btn.closest('.pregunta');
+  container.querySelectorAll('.rbtn').forEach(b => b.classList.remove('si'));
+  btn.classList.add('si');
+  const inp = document.getElementById('ros_queso_prov');
   if(inp) inp.value = tipo;
+  document.getElementById('ros-queso-otro').style.display = tipo === 'otro' ? 'block' : 'none';
   autoSave();
 }
 
+function selProceso(lineaId, tipo, pelletTipo) {
+  const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
+  const sec = document.getElementById('sec-' + lineaId);
+  if(!sec) return;
+  sec.querySelectorAll('.rbtn').forEach(b => {
+    if(b.id === `btn-${lineaId}-princ` || PELLETS.includes(b.textContent.trim())) b.classList.remove('si');
+  });
+  const bloquePrinc = document.getElementById(`bloque-${lineaId}-princ`);
+  const bloquePell  = document.getElementById(`bloque-${lineaId}-pellet`);
+  if(bloquePrinc) bloquePrinc.style.display = tipo === 'principal' ? 'block' : 'none';
+  if(bloquePell)  bloquePell.style.display  = tipo === 'pellet'    ? 'block' : 'none';
+  if(tipo === 'principal') {
+    const b = document.getElementById(`btn-${lineaId}-princ`);
+    if(b) b.classList.add('si');
+  } else if(tipo === 'pellet' && pelletTipo) {
+    sec.querySelectorAll('.rbtn').forEach(b => { if(b.textContent.trim() === pelletTipo) b.classList.add('si'); });
+    const lbl = document.getElementById(`lbl-${lineaId}-pellet`);
+    if(lbl) lbl.textContent = pelletTipo;
+  }
+  const tipoInp = document.getElementById(`${lineaId}_proceso_tipo`);
+  const pellInp = document.getElementById(`${lineaId}_proceso_pellet`);
+  if(tipoInp) tipoInp.value = tipo;
+  if(pellInp && pelletTipo) pellInp.value = pelletTipo;
+  autoSave();
+}
 
 
 function renderMP() {
