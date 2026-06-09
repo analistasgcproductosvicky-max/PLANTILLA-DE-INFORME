@@ -910,7 +910,8 @@ function noOperoBloque(key, fid) {
     `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
      <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
      ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
-    `<div style="background:var(--gris);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--txt-s)">No se realizó limpieza en esta línea durante el turno.</div>`
+    `<div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿Por qué la línea estuvo parada sin limpieza?</div>
+     <textarea class="rdet" data-campo="${key}_paro_motivo" placeholder="Ej. Personal insuficiente, mantenimiento programado, falla eléctrica..." oninput="autoSave()" style="min-height:56px"></textarea>`
   );
 }
 
@@ -1004,41 +1005,71 @@ function renderPE() {
     `);
   }
 
+  const TORTILLA_TIPOS = ['Tortilla tipo Nacho','Tortilla Redonda','Tortilla tipo Twisty','Otro'];
+  const PELLET_TIPOS   = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
+
   const pregsTortilla = `
+    ${preg('a','¿Se cocinó maíz durante el turno?','tort_maiz_cocio',
+      `<div class="preg-label" style="font-size:12px;margin-bottom:5px">¿En qué tanques quedó almacenado?</div>
+       ${tbl('t-tort-maiz-cocio',['# Tanque','Desde qué hora','Cantidad (kg)','Observaciones'],1)}`
+    )}
+
     <div class="pregunta">
-      <div class="preg-label"><span class="pnum">a</span>¿Qué referencias salieron?</div>
+      <div class="preg-label"><span class="pnum">b</span>¿Qué se procesó en la línea? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varias opciones)</span></div>
+      <div style="margin-bottom:6px">
+        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">Tortilla:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          ${TORTILLA_TIPOS.map(t => `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('tort',this,'${t}')">${t}</button>`).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">Pellet:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${PELLET_TIPOS.map(p => `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('pellet',this,'${p}')">${p}</button>`).join('')}
+        </div>
+      </div>
+      <input type="hidden" data-campo="tort_procesado" id="tort_procesado">
+      <div id="tort-otro-det" style="display:none;margin-top:6px">
+        <input class="rinp" type="text" data-campo="tort_otro_det" placeholder="Especifique..." oninput="autoSave()">
+      </div>
+    </div>
+
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">c</span>¿Qué referencias salieron?</div>
       ${tbl('t-tort-prod',['Referencia','% Saborización','Observaciones'],2)}
     </div>
 
-    ${preg('b','¿Los tiempos de reposo se están cumpliendo?','tort_reposo',``,
+    ${preg('d','¿Los tiempos de reposo se están cumpliendo?','tort_reposo','',
       tbl('t-tort-reposo',['Referencia','Tiempo real','Tiempo requerido','Motivo'],1)
     )}
 
     <div class="pregunta">
-      <div class="preg-label"><span class="pnum">c</span>¿Qué se hizo con el maíz durante el turno? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varias)</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">
-        <button class="rbtn" id="btn-maiz-reposo" onclick="toggleMaiz('reposo',this)">Se procesó maíz en reposo</button>
-        <button class="rbtn" id="btn-maiz-cocinar" onclick="toggleMaiz('cocinar',this)">Se pusieron tanques a cocinar</button>
-        <button class="rbtn" id="btn-maiz-nada" onclick="toggleMaiz('nada',this)">No se procesó maíz</button>
+      <div class="preg-label"><span class="pnum">e</span>Tipo de aceite</div>
+      <div class="grid2">
+        <div>
+          <label style="font-size:12px;color:var(--txt-s)">Tipo de aceite (Oleína o Blend)</label>
+          <div style="display:flex;gap:7px;margin-top:4px">
+            <button class="rbtn" onclick="selGrasa('linea-tort','oleina',this)">Oleína</button>
+            <button class="rbtn" onclick="selGrasa('linea-tort','blend',this)">Blend</button>
+          </div>
+          <input type="hidden" data-campo="linea-tort_grasa_tipo" id="linea-tort_grasa_tipo">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--txt-s)">Tipo de aceite</label>
+          <div style="display:flex;gap:7px;margin-top:4px">
+            <button class="rbtn" onclick="selAceite('linea-tort','reutilizado',this)">Reutilizado</button>
+            <button class="rbtn" onclick="selAceite('linea-tort','nuevo',this)">Arrancó con nuevo</button>
+          </div>
+          <input type="hidden" data-campo="linea-tort_aceite_tipo" id="linea-tort_aceite_tipo">
+        </div>
       </div>
-      <div id="bloque-maiz-reposo" style="display:none;margin-top:6px">
-        <label style="font-size:12px;color:var(--txt-s)">Maíz en reposo procesado:</label>
-        ${tbl('t-tort-maiz-rep',['Tanque','Cantidad (kg)','Tiempo de reposo','Observaciones'],1)}
-      </div>
-      <div id="bloque-maiz-cocinar" style="display:none;margin-top:6px">
-        <label style="font-size:12px;color:var(--txt-s)">Nuevos tanques puestos a cocinar:</label>
-        ${tbl('t-tort-maiz-coc',['Tanque','Cantidad (kg)','Hora inicio cocción','Observaciones'],1)}
-      </div>
-      <input type="hidden" data-campo="tort_maiz_estado" id="tort_maiz_estado">
     </div>
 
-    ${preg('d','¿Se garantizó la selección de PNC a la salida del horno y del freedor?','tort_sel',
+    ${preg('f','¿Se garantizó la selección de PNC a la salida del horno y del freedor?','tort_sel',
       `<textarea class="rdet" data-campo="tort_sel_si_det" placeholder="Describa cómo se realizó la selección en horno y freedor..." oninput="autoSave()"></textarea>
        ${foto('📷 Fotos de selección PNC — horno y freedor','Adjuntar fotos de ambos puntos','f_tort_sel')}`,
       `<textarea class="rdet" data-campo="tort_sel_no_det" placeholder="¿Por qué no se garantizó? Describa qué pasó..." oninput="autoSave()"></textarea>`
     )}
 
-    ${preg('e','¿Hubo producto no conforme?','tort_pnc',
+    ${preg('g','¿Hubo producto no conforme?','tort_pnc',
       `${tbl('t-tort-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)}
        ${foto('📷 Fotos del PNC','Adjuntar evidencia fotográfica del producto no conforme','f_tort_pnc')}`
     )}`;
@@ -1050,7 +1081,17 @@ function renderPE() {
     </div>
     <div class="grid2" style="margin-bottom:12px">
       <div><div class="preg-label"><span class="pnum">b</span>Tipo de aceite</div>
-        <select class="rinp" data-campo="troc_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option><option>Mezcla</option></select></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;margin-bottom:4px">
+          <button class="rbtn" onclick="selGrasa('linea-troc','oleina',this)">Oleína</button>
+          <button class="rbtn" onclick="selGrasa('linea-troc','blend',this)">Blend</button>
+        </div>
+        <input type="hidden" data-campo="linea-troc_grasa_tipo" id="linea-troc_grasa_tipo">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+          <button class="rbtn" onclick="selAceite('linea-troc','reutilizado',this)">Reutilizado</button>
+          <button class="rbtn" onclick="selAceite('linea-troc','nuevo',this)">Arrancó con nuevo</button>
+        </div>
+        <input type="hidden" data-campo="linea-troc_aceite_tipo" id="linea-troc_aceite_tipo">
+      </div>
       <div><div class="preg-label"><span class="pnum">c</span>¿Hubo exportación?</div>
         <div class="sino-row" data-key="troc_exp">
           <button class="rbtn" onclick="siNo(this,'si')">Sí</button>
@@ -1097,7 +1138,16 @@ function renderPE() {
     )}
     <div class="pregunta">
       <div class="preg-label"><span class="pnum">b</span>Tipo de aceite</div>
-      <select class="rinp" data-campo="pell_aceite" onchange="autoSave()"><option value="">Seleccione...</option><option>Nuevo</option><option>Reutilizado</option></select>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        <button class="rbtn" onclick="selGrasa('linea-pell','oleina',this)">Oleína</button>
+        <button class="rbtn" onclick="selGrasa('linea-pell','blend',this)">Blend</button>
+      </div>
+      <input type="hidden" data-campo="linea-pell_grasa_tipo" id="linea-pell_grasa_tipo">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <button class="rbtn" onclick="selAceite('linea-pell','reutilizado',this)">Reutilizado</button>
+        <button class="rbtn" onclick="selAceite('linea-pell','nuevo',this)">Arrancó con nuevo</button>
+      </div>
+      <input type="hidden" data-campo="linea-pell_aceite_tipo" id="linea-pell_aceite_tipo">
     </div>
     ${preg('c','¿Las temperaturas superaron los 180°C?','pell_temp',tbl('t-pell-temp',['Referencia','T° registrada','Hora','Acción']))}
     ${preg('d','¿Las densidades presentaron desviaciones?','pell_dens',tbl('t-pell-dens',['Referencia','Densidad','Parámetro','Causa']))}
@@ -1323,7 +1373,7 @@ function secPapaUnificado() {
             <div class="preg-label"><span class="pnum">i</span>Tipo de grasa</div>
             <div class="grid2">
               <div>
-                <label style="font-size:12px;color:var(--txt-s)">¿Oleína o blend?</label>
+                <label style="font-size:12px;color:var(--txt-s)">Tipo de aceite (Oleína o Blend)</label>
                 <div style="display:flex;gap:7px;margin-top:4px">
                   <button class="rbtn" onclick="selGrasa('${k}','oleina',this)">Oleína</button>
                   <button class="rbtn" onclick="selGrasa('${k}','blend',this)">Blend</button>
@@ -1549,6 +1599,19 @@ function toggleMaiz(tipo, btn) {
     const inp = document.getElementById('tort_maiz_estado');
     if(inp) inp.value = activos.join(',');
   }
+  autoSave();
+}
+
+function toggleProcTort(categoria, btn, valor) {
+  btn.classList.toggle('si');
+  // Collect all selected
+  const allBtns = btn.closest('.pregunta').querySelectorAll('.rbtn');
+  const seleccionados = [...allBtns].filter(b => b.classList.contains('si')).map(b => b.textContent.trim());
+  const inp = document.getElementById('tort_procesado');
+  if(inp) inp.value = seleccionados.join(',');
+  // Show "otro" field if Otro tortilla is selected
+  const otroEl = document.getElementById('tort-otro-det');
+  if(otroEl) otroEl.style.display = seleccionados.includes('Otro') ? 'block' : 'none';
   autoSave();
 }
 
@@ -1880,7 +1943,7 @@ async function generarPDF() {
   const semana = Math.ceil((((d-yearStart)/86400000)+1)/7);
 
   const tit = tipoActual==='emp'?'INFORME DE EMPAQUE':tipoActual==='pe'?'INFORME DE PROCESOS':'INFORME DE MATERIA PRIMA';
-  const responsables = tipoActual==='emp'?getResp('empaque').join(', '):tipoActual==='pe'?getResp('extruido').join(', '):getResp('mp').join(', ');
+  const responsables = tipoActual==='emp'?getResp('empaque').join(', '):tipoActual==='pe'?getResp('pe_general').join(', '):getResp('mp').join(', ');
 
   // Banner título — fuente más grande
   doc.setFillColor(...C.azul); doc.rect(0,0,PW,22,'F');
