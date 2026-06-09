@@ -1406,7 +1406,7 @@ function secPapaUnificado() {
           )}
 
           <div class="pregunta">
-            <div class="preg-label"><span class="pnum">i</span>Tipo de grasa</div>
+            <div class="preg-label"><span class="pnum">i</span>Tipo de Aceite</div>
             <div class="grid2">
               <div>
                 <label style="font-size:12px;color:var(--txt-s)">Tipo de aceite (Oleína o Blend)</label>
