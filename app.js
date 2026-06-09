@@ -1351,7 +1351,7 @@ function secPapaUnificado() {
           `${preg('a','¿Se hizo limpieza de la línea?',`${k}_limp_paro`,
             `<textarea class="rdet" data-campo="${k}_limp_paro_det" placeholder="¿Qué se limpió?" oninput="autoSave()"></textarea>
              ${foto('Fotos de limpieza','Evidencia fotográfica',`f_${k}_limp`)}`,
-            `<textarea class="rdet" data-campo="${k}_manejo_actual" placeholder="¿Cómo se viene manejando la línea?" oninput="autoSave()"></textarea>`
+            `<textarea class="rdet" data-campo="${k}_manejo_actual" placeholder="Describa el estado de la línea durante el turno" oninput="autoSave()"></textarea>`
           )}`
         )}
 
