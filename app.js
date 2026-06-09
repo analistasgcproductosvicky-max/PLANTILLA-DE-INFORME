@@ -1926,7 +1926,7 @@ async function generarPDF() {
 
   if(tipoActual==='emp') {
     titulo('Empaque');
-    campo('Responsables', getResp('empaque').join(', ')||'—');
+    campo('Responsables', getResp('emp_general').join(', ')||'—');
     campo('Máquinas lavadas en el turno', gv('emp_lavado_cuales'), gsino('emp_lavado'), 'No se lavaron máquinas en el turno');
     await fotos(gfgrid('empaque','emp_lavado'));
     titulo('Máquinas fuera de servicio',2); if(gsino('emp_fs')==='si') tabla(['Máquina','Motivo','Desde cuándo'],gtbl('t-emp-fs')); else campo('','','no','No hay máquinas fuera de servicio');
