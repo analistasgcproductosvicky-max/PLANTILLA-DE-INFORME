@@ -971,7 +971,6 @@ function renderPE() {
     </div>
   </div>
   ${secExtruido(1)} ${secExtruido(2)} ${secExtruido(3)}
-  ${secRos}
   ${secLineaFlex('linea-tort','🟤','Tortilla','Tortilla',pregsTortilla)}
   ${secLineaFlex('linea-troc','🟧','Trocillo','Trocillo',pregsTrocillo)}
   ${secLineaFlex('linea-pell','🔶','Pellet','Pellet estándar',pregsPelletEst)}
