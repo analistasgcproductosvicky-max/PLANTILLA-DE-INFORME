@@ -1059,23 +1059,33 @@ function renderPE() {
   const PELLET_TIPOS   = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
 
   const pregsTortilla = `
-    <div class="pregunta">
-      <div class="preg-label"><span class="pnum">b</span>¿Qué tipo de tortilla se procesó? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varias)</span></div>
-      <div style="margin-bottom:6px">
-        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">Tortilla:</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-          ${TORTILLA_TIPOS.map(t => `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('tort',this,'${t}')">${t}</button>`).join('')}
-        </div>
-        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">Pellet:</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${PELLET_TIPOS.map(p => `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('pellet',this,'${p}')">${p}</button>`).join('')}
-        </div>
-      </div>
-      <input type="hidden" data-campo="tort_procesado" id="tort_procesado">
-      <div id="tort-otro-det" style="display:none;margin-top:6px">
-        <input class="rinp" type="text" data-campo="tort_otro_det" placeholder="Especifique..." oninput="autoSave()">
-      </div>
+<div class="pregunta">
+    <div class="preg-label">
+        <span class="pnum">b</span>
+        ¿Qué se procesó en la línea?
+        <span style="font-size:11px;color:var(--txt-s)">
+            (puede seleccionar varias opciones)
+        </span>
     </div>
+
+    <div style="margin-bottom:6px">
+        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">
+            Tortilla:
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            ${TORTILLA_TIPOS.map(t =>
+                `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('tort',this,'${t}')">${t}</button>`
+            ).join('')}
+        </div>
+    </div>
+
+    <input type="hidden" data-campo="tort_procesado" id="tort_procesado">
+
+    <div id="tort-otro-det" style="display:none;margin-top:6px">
+        <input class="rinp" type="text" data-campo="tort_otro_det" placeholder="Especifique..." oninput="autoSave()">
+    </div>
+</div>
 
     <div class="pregunta">
       <div class="preg-label"><span class="pnum">c</span>¿Qué referencias salieron?</div>
