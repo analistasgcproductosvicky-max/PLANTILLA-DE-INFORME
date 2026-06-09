@@ -20,6 +20,9 @@ const PERSONAS_AREA = {
   papa_general: PERSONAS
 };
 
+let PAPA_REFERENCIAS = ['Lisa','Oreada','Fosforito'];
+let PAPA_SABORES     = ['Natural','Pollo','Limón','BBQ','Picante','Mayonesa','Crema y cebolla','Hot','Otro'];
+
 const SECCIONES_PE = ['extruido','rosquilla','tortillas','trocillo','papa','pellet'];
 const LABEL_SEC = {
   extruido:'Extruido', rosquilla:'Rosquilla', tortillas:'Tortillas',
@@ -136,6 +139,39 @@ function addRowTolvas(id) {
   const td3=document.createElement('td'); const i3=document.createElement('input'); i3.type='text'; i3.readOnly=true;
   Object.assign(i3.style,{width:'100%',border:'none',background:'transparent',fontFamily:"'DM Sans',sans-serif",fontSize:'12px',padding:'4px',fontWeight:'600'});
   td3.appendChild(i3); tr.appendChild(td3);
+  tb.appendChild(tr);
+}
+
+function tblRefSabor(id, rows=2) {
+  const refs = PAPA_REFERENCIAS.map(r => `<option value="${r}">${r}</option>`).join('');
+  const sabs = PAPA_SABORES.map(s => `<option value="${s}">${s}</option>`).join('');
+  const ths = '<th>Referencia</th><th>Sabor</th>';
+  const makeRow = () => `<tr>
+    <td><select onchange="autoSave()" style="width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;padding:4px"><option value="">Seleccione...</option>${refs}</select></td>
+    <td><select onchange="autoSave()" style="width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;padding:4px"><option value="">Seleccione...</option>${sabs}</select></td>
+  </tr>`;
+  const bodyRows = Array.from({length:rows}, makeRow).join('');
+  return `<div class="twrap"><table class="reg" id="${id}">
+    <thead><tr>${ths}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table></div>
+  <button class="btn-add" onclick="addRowRefSabor('${id}')">+ Agregar referencia</button>`;
+}
+
+function addRowRefSabor(id) {
+  const tb = document.getElementById(id)?.querySelector('tbody');
+  if(!tb) return;
+  const refs = PAPA_REFERENCIAS.map(r => `<option value="${r}">${r}</option>`).join('');
+  const sabs = PAPA_SABORES.map(s => `<option value="${s}">${s}</option>`).join('');
+  const tr = document.createElement('tr');
+  ['refs','sabs'].forEach(tipo => {
+    const td = document.createElement('td');
+    const sel = document.createElement('select');
+    sel.innerHTML = `<option value="">Seleccione...</option>${tipo==='refs'?refs:sabs}`;
+    Object.assign(sel.style, {width:'100%',border:'none',background:'transparent',fontFamily:"'DM Sans',sans-serif",fontSize:'12px',padding:'4px'});
+    sel.addEventListener('change', autoSave);
+    td.appendChild(sel); tr.appendChild(td);
+  });
   tb.appendChild(tr);
 }
 
@@ -976,27 +1012,35 @@ function renderPE() {
   function secLineaFlex(id, icon, nombre, opPrincipal, pregsPrincipal) {
     const k = id;
     const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
-    const pelletBtns = PELLETS.map(p =>
-      `<button class="rbtn" style="font-size:11px" onclick="selProceso('${k}','pellet','${p}')">${p}</button>`
+    const pelletOpts = PELLETS.map(p =>
+      `<button class="rbtn" style="font-size:11px" onclick="togglePelletLinea('${k}',this,'${p}')">${p}</button>`
     ).join('');
     return sec(id, icon, nombre, `
       ${preg(1, `¿La línea de ${nombre} operó durante el turno?`, `${k}_opera`,
-        `<div class="pregunta">
+        `<!-- ¿Qué se procesó? -->
+        <div class="pregunta">
           <div class="preg-label"><span class="pnum">a</span>¿Qué se procesó en esta línea?</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-            <button class="rbtn" id="btn-${k}-princ" onclick="selProceso('${k}','principal')">${opPrincipal}</button>
-            <div style="width:100%;font-size:11px;color:var(--txt-s);margin:4px 0 2px">Pellet:</div>
-            ${pelletBtns}
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">
+            <button class="rbtn" id="btn-${k}-princ" onclick="selProcesoLinea('${k}','principal')">${opPrincipal}</button>
+            <button class="rbtn" id="btn-${k}-pellet-sel" onclick="selProcesoLinea('${k}','pellet')">Pellet</button>
           </div>
           <input type="hidden" data-campo="${k}_proceso_tipo" id="${k}_proceso_tipo">
-          <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
         </div>
+
+        <!-- Bloque PRODUCTO PRINCIPAL -->
         <div id="bloque-${k}-princ" style="display:none">
-          <div class="nota-info" style="font-size:11px">Procesando: <strong>${opPrincipal}</strong></div>
+          <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando: <strong>${opPrincipal}</strong></div>
           ${pregsPrincipal}
         </div>
+
+        <!-- Bloque PELLET -->
         <div id="bloque-${k}-pellet" style="display:none">
-          <div class="nota-info" style="font-size:11px">Procesando pellet: <strong id="lbl-${k}-pellet">—</strong></div>
+          <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando pellet</div>
+          <div class="pregunta" style="border:none;padding:0">
+            <div class="preg-label" style="margin-bottom:6px"><span class="pnum">•</span>¿Qué tipo de pellet? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
+            <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
+          </div>
           ${tbl(`t-${k}-pell-prod`,['Referencia','% Saborización','Observaciones'],2)}
           ${bloquesPellet(k)}
         </div>`,
@@ -1306,27 +1350,8 @@ function secPapaUnificado() {
           </div>
 
           <div class="pregunta">
-            <div class="preg-label"><span class="pnum">b</span>¿Qué referencia se trabaja?</div>
-            <div style="display:flex;gap:7px;flex-wrap:wrap">
-              <button class="rbtn" onclick="selRef('${k}',this,'Lisa')">Lisa</button>
-              <button class="rbtn" onclick="selRef('${k}',this,'Oreada')">Oreada</button>
-              <button class="rbtn" onclick="selRef('${k}',this,'Fosforito')">Fosforito</button>
-            </div>
-            <input type="hidden" data-campo="${k}_referencia" id="${k}_referencia">
-          </div>
-
-          <div class="pregunta">
-            <div class="preg-label"><span class="pnum">c</span>¿Qué sabor?</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
-              ${['Natural','Pollo','Limón','BBQ','Picante','Mayonesa','Crema y cebolla','Hot'].map(s =>
-                `<button class="rbtn" style="font-size:11px" onclick="toggleSabor('${k}',this,'${s}')">${s}</button>`
-              ).join('')}
-              <button class="rbtn" style="font-size:11px" onclick="toggleSabor('${k}',this,'Otro')">Otro</button>
-            </div>
-            <input type="hidden" data-campo="${k}_sabores" id="${k}_sabores">
-            <div id="${k}-sabor-otro" style="display:none;margin-top:6px">
-              <input class="rinp" type="text" data-campo="${k}_sabor_otro" placeholder="Especificar sabor..." oninput="autoSave()">
-            </div>
+            <div class="preg-label"><span class="pnum">b</span>Referencia — Sabor procesado <span style="font-size:11px;color:var(--txt-s)">(agregar una fila por cada referencia)</span></div>
+            ${tblRefSabor(`t-${k}-refsabor`)}
           </div>
 
           <div class="pregunta">
@@ -1612,6 +1637,30 @@ function toggleProcTort(categoria, btn, valor) {
   // Show "otro" field if Otro tortilla is selected
   const otroEl = document.getElementById('tort-otro-det');
   if(otroEl) otroEl.style.display = seleccionados.includes('Otro') ? 'block' : 'none';
+  autoSave();
+}
+
+function selProcesoLinea(lineaId, tipo) {
+  ['princ','pellet-sel'].forEach(s => {
+    const b = document.getElementById(`btn-${lineaId}-${s}`);
+    if(b) b.classList.remove('si');
+  });
+  const btn = document.getElementById(`btn-${lineaId}-${tipo==='principal'?'princ':'pellet-sel'}`);
+  if(btn) btn.classList.add('si');
+  const bp = document.getElementById(`bloque-${lineaId}-princ`);
+  const bl = document.getElementById(`bloque-${lineaId}-pellet`);
+  if(bp) bp.style.display = tipo === 'principal' ? 'block' : 'none';
+  if(bl) bl.style.display = tipo === 'pellet'    ? 'block' : 'none';
+  const inp = document.getElementById(`${lineaId}_proceso_tipo`);
+  if(inp) inp.value = tipo;
+  autoSave();
+}
+
+function togglePelletLinea(lineaId, btn, pelletTipo) {
+  btn.classList.toggle('si');
+  const sel = [...btn.closest('div').querySelectorAll('.rbtn.si')].map(b => b.textContent.trim());
+  const inp = document.getElementById(`${lineaId}_proceso_pellet`);
+  if(inp) inp.value = sel.join(',');
   autoSave();
 }
 
@@ -2458,6 +2507,26 @@ const ADMIN_PIN = '1234'; // Cambiar este PIN en el código si desea mayor segur
 let _personasLocal = null; // se carga desde Firebase al iniciar
 
 // Cargar personas personalizadas desde Firebase (si existen)
+async function cargarConfigListas() {
+  if(!window._fb) return;
+  // Load papa referencias
+  try {
+    const dr = await window._fb.cargar('__config__papa_refs__');
+    if(dr?.lista?.length) {
+      window._papaRefsLocal = dr.lista;
+      PAPA_REFERENCIAS.length = 0; dr.lista.forEach(v => PAPA_REFERENCIAS.push(v));
+    }
+  } catch(e) {}
+  // Load papa sabores
+  try {
+    const ds = await window._fb.cargar('__config__papa_sabores__');
+    if(ds?.lista?.length) {
+      window._papaSaboresLocal = ds.lista;
+      PAPA_SABORES.length = 0; ds.lista.forEach(v => PAPA_SABORES.push(v));
+    }
+  } catch(e) {}
+}
+
 async function cargarPersonasConfig() {
   if(!window._fb) return;
   try {
@@ -2469,6 +2538,17 @@ async function cargarPersonasConfig() {
       console.log('Personas cargadas desde config:', _personasLocal.length);
     }
   } catch(e) {}
+}
+
+async function guardarListaConfig(firebaseKey, lista, windowKey, globalRef) {
+  if(!window._fb) return;
+  try {
+    await window._fb.guardar(firebaseKey, { lista, tipo:'__config__', ts: Date.now() });
+    window[windowKey] = lista;
+    // Update global array in-place
+    globalRef.length = 0;
+    lista.forEach(v => globalRef.push(v));
+  } catch(e) { console.error('guardarListaConfig:', e); }
 }
 
 async function guardarPersonasConfig(lista) {
@@ -2549,6 +2629,22 @@ function mostrarPanelAdmin() {
         </div>
       </div>
       <div class="admin-section">
+        <div class="admin-section-title">Referencias de papa (Lisa, Oreada, Fosforito...)</div>
+        <div id="papa-refs-lista"></div>
+        <div class="admin-add-row">
+          <input type="text" id="nueva-ref-inp" placeholder="Nueva referencia de papa">
+          <button class="btn-admin-add" onclick="agregarItemAdmin('ref')">+ Agregar</button>
+        </div>
+      </div>
+      <div class="admin-section">
+        <div class="admin-section-title">Sabores de papa (Natural, BBQ, Picante...)</div>
+        <div id="papa-sabores-lista"></div>
+        <div class="admin-add-row">
+          <input type="text" id="nuevo-sabor-inp" placeholder="Nuevo sabor">
+          <button class="btn-admin-add" onclick="agregarItemAdmin('sabor')">+ Agregar</button>
+        </div>
+      </div>
+      <div class="admin-section">
         <div class="admin-section-title">Cambiar PIN de administrador</div>
         <div class="grid2">
           <div><label style="font-size:12px;color:var(--txt-s)">PIN actual</label>
@@ -2568,14 +2664,51 @@ function mostrarPanelAdmin() {
   </div>`;
 
   // Store working copy
-  overlay._lista = [...lista];
+  overlay._lista    = [...lista];
+  overlay._refs     = [...(window._papaRefsLocal  || PAPA_REFERENCIAS)];
+  overlay._sabores  = [...(window._papaSaboresLocal|| PAPA_SABORES)];
   document.body.appendChild(overlay);
+  setTimeout(() => {
+    renderAdminSubLista('papa-refs-lista',    overlay._refs,   'ref');
+    renderAdminSubLista('papa-sabores-lista', overlay._sabores,'sabor');
+  }, 50);
   setTimeout(() => document.getElementById('nueva-persona-inp')?.focus(), 100);
 }
 
 function getAdminLista() {
   const panel = document.getElementById('admin-panel');
   return panel ? panel._lista : [];
+}
+
+function renderAdminSubLista(elId, lista, tipo) {
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = lista.map((item,i) =>
+    `<div class="persona-item"><span class="persona-name">${item}</span>
+     <button class="btn-del-persona" onclick="eliminarItemAdmin('${tipo}',${i})">×</button></div>`
+  ).join('') || '<div style="color:var(--txt-s);font-size:13px;padding:6px">Lista vacía</div>';
+}
+
+function agregarItemAdmin(tipo) {
+  const inpId = tipo==='ref' ? 'nueva-ref-inp' : 'nuevo-sabor-inp';
+  const listId = tipo==='ref' ? 'papa-refs-lista' : 'papa-sabores-lista';
+  const val = document.getElementById(inpId)?.value?.trim();
+  if(!val) return;
+  const panel = document.getElementById('admin-panel');
+  if(!panel) return;
+  const lista = tipo==='ref' ? panel._refs : panel._sabores;
+  if(lista.includes(val)) { toast('Ya existe','rojo'); return; }
+  lista.push(val);
+  if(tipo==='ref') panel._refs=lista; else panel._sabores=lista;
+  renderAdminSubLista(listId, lista, tipo);
+  document.getElementById(inpId).value = '';
+}
+
+function eliminarItemAdmin(tipo, idx) {
+  const panel = document.getElementById('admin-panel');
+  if(!panel) return;
+  if(tipo==='ref') { panel._refs.splice(idx,1); renderAdminSubLista('papa-refs-lista', panel._refs,'ref'); }
+  else             { panel._sabores.splice(idx,1); renderAdminSubLista('papa-sabores-lista',panel._sabores,'sabor'); }
 }
 
 function renderAdminLista() {
@@ -2636,6 +2769,9 @@ async function guardarCambiosAdmin() {
   if(lista.length === 0) { toast('Agrega al menos un responsable','rojo'); return; }
   const btn = document.querySelector('.btn-admin-save');
   if(btn) btn.textContent = '⏳ Guardando...';
+  const panel2 = document.getElementById('admin-panel');
+  if(panel2?._refs)    await guardarListaConfig('__config__papa_refs__',    panel2._refs,    '_papaRefsLocal',    PAPA_REFERENCIAS);
+  if(panel2?._sabores) await guardarListaConfig('__config__papa_sabores__', panel2._sabores, '_papaSaboresLocal',  PAPA_SABORES);
   const ok = await guardarPersonasConfig(lista);
   if(ok) {
     toast('✓ Responsables actualizados en la nube','verde');
@@ -2649,6 +2785,7 @@ async function guardarCambiosAdmin() {
 /* ══════ INIT ══════ */
 async function initMenu() {
   await cargarPersonasConfig();
+  await cargarConfigListas();
   await cargarPinConfig();
   renderBorradores();
   renderTurnos();
