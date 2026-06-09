@@ -905,17 +905,17 @@ function renderEmpaque() {
 ══════════════════════════════════════════════ */
 
 
+function noOperoBloque(key, fid) {
+  return preg('a','¿Se hizo limpieza de la línea?',`${key}_limp_paro`,
+    `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
+     <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
+     ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
+    `<div style="background:var(--gris);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--txt-s)">No se realizó limpieza en esta línea durante el turno.</div>`
+  );
+}
+
 function renderPE() {
   const c = document.getElementById('form-content');
-
-  function noOperoBloque(key, fid) {
-    return preg('a','¿Se hizo limpieza de la línea?',`${key}_limp_paro`,
-      `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
-       <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
-       ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
-      `<div style="background:var(--gris);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--txt-s)">No se realizó limpieza en esta línea durante el turno.</div>`
-    );
-  }
 
   function secExtruido(n) {
     const k = `ext${n}`;
