@@ -1211,7 +1211,7 @@ function renderPE() {
   ${secRos}
   ${secLineaFlex('linea-tort','🟤','Tortilla','Tortilla',pregsTortilla)}
   ${secLineaFlex('linea-troc','🟧','Trocillo','Trocillo',pregsTrocillo)}
-  ${secLineaFlex('linea-pell','🔶','Pellet','Pellet estándar',pregsPelletEst)}
+  ${secLineaFlex('linea-pell','🔶','Pellet',pregsPelletEst)}
   ${secPapaUnificado()}`;
 
   document.querySelector('[data-campo="fecha"]').valueAsDate = new Date();
