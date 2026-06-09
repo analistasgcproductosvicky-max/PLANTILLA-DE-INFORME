@@ -1553,66 +1553,69 @@ function toggleMaiz(tipo, btn) {
 }
 
 function selProceso(lineaId, tipo, pelletTipo) {
-  const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
   const sec = document.getElementById('sec-' + lineaId);
-  if(!sec) return;
-  if(tipo === 'principal') {
-  sec.querySelectorAll('.rbtn').forEach(b => {
-    if(b.id === `btn-${lineaId}-princ`)
-      b.classList.remove('si');
-  });
-}
+  if (!sec) return;
+
   const bloquePrinc = document.getElementById(`bloque-${lineaId}-princ`);
   const bloquePell  = document.getElementById(`bloque-${lineaId}-pellet`);
-  if(bloquePrinc) bloquePrinc.style.display = tipo === 'principal' ? 'block' : 'none';
-  if(bloquePell)  bloquePell.style.display  = tipo === 'pellet'    ? 'block' : 'none';
-  if(tipo === 'principal') {
+
+  if (tipo === 'principal') {
+
+    sec.querySelectorAll('.rbtn').forEach(b => {
+      if (b.id === `btn-${lineaId}-princ`) {
+        b.classList.remove('si');
+      }
+    });
+
     const b = document.getElementById(`btn-${lineaId}-princ`);
-    if(b) b.classList.add('si');
-  else if(tipo === 'pellet' && pelletTipo) {
+    if (b) b.classList.add('si');
 
-  const pellInp = document.getElementById(`${lineaId}_proceso_pellet`);
-  let seleccionados = pellInp && pellInp.value
-    ? pellInp.value.split('|')
-    : [];
-
-  const btn = [...sec.querySelectorAll('.rbtn')]
-    .find(b => b.textContent.trim() === pelletTipo);
-
-  if(seleccionados.includes(pelletTipo)) {
-    seleccionados = seleccionados.filter(x => x !== pelletTipo);
-    if(btn) btn.classList.remove('si');
-  } else {
-    seleccionados.push(pelletTipo);
-    if(btn) btn.classList.add('si');
+    if (bloquePrinc) bloquePrinc.style.display = 'block';
+    if (bloquePell) bloquePell.style.display = 'none';
   }
 
-  if(pellInp) {
-    pellInp.value = seleccionados.join('|');
+  else if (tipo === 'pellet' && pelletTipo) {
+
+    const pellInp = document.getElementById(`${lineaId}_proceso_pellet`);
+
+    let seleccionados = pellInp?.value
+      ? pellInp.value.split('|')
+      : [];
+
+    const btn = [...sec.querySelectorAll('.rbtn')]
+      .find(b => b.textContent.trim() === pelletTipo);
+
+    if (seleccionados.includes(pelletTipo)) {
+      seleccionados = seleccionados.filter(x => x !== pelletTipo);
+      if (btn) btn.classList.remove('si');
+    } else {
+      seleccionados.push(pelletTipo);
+      if (btn) btn.classList.add('si');
+    }
+
+    if (pellInp) {
+      pellInp.value = seleccionados.join('|');
+    }
+
+    const lbl = document.getElementById(`lbl-${lineaId}-pellet`);
+    if (lbl) {
+      lbl.textContent = seleccionados.length
+        ? seleccionados.join(', ')
+        : '—';
+    }
+
+    if (bloquePrinc) bloquePrinc.style.display = 'none';
+    if (bloquePell) {
+      bloquePell.style.display =
+        seleccionados.length ? 'block' : 'none';
+    }
   }
 
-  const lbl = document.getElementById(`lbl-${lineaId}-pellet`);
-  if(lbl) {
-    lbl.textContent = seleccionados.length
-      ? seleccionados.join(', ')
-      : '—';
-  }
-
-  if(bloquePell) {
-    bloquePell.style.display =
-      seleccionados.length ? 'block' : 'none';
-  }
-
-  autoSave();
-  return;
-}
   const tipoInp = document.getElementById(`${lineaId}_proceso_tipo`);
-  const pellInp = document.getElementById(`${lineaId}_proceso_pellet`);
-  if(tipoInp) tipoInp.value = tipo;
-  if(pellInp && pelletTipo) pellInp.value = pelletTipo;
+  if (tipoInp) tipoInp.value = tipo;
+
   autoSave();
 }
-
 
 function renderMP() {
   const c = document.getElementById('form-content');
