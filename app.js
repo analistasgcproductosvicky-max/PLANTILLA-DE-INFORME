@@ -2062,9 +2062,9 @@ async function generarPDF() {
             campo('Exportación','',gsino('troc_exp'),'Sin exportación en el turno');
             if(gsino('troc_exp')==='si') tabla(['Ref','Lote','Destino'],gtbl('t-troc-exp'));
             campo('Dimensiones conformes','',gsino('troc_dim'),'Dimensiones dentro de especificación');
-            if(gsino('troc_dim')==='no'){ campo('Motivo', gv('troc_dim_mot')); await fotos(document.querySelector('.fgrid[data-fid="f_troc_dim"]')); }
+            if(gsino('troc_dim')==='si'){ campo('Motivo', gv('troc_dim_mot')); await fotos(document.querySelector('.fgrid[data-fid="f_troc_dim"]')); }
             campo('Densidades conformes','',gsino('troc_dens'),'Densidades dentro de parámetros');
-            if(gsino('troc_dens')==='no') tabla(['Ref','Densidad','Parámetro','Causa'],gtbl('t-troc-dens'));
+            if(gsino('troc_dens')==='si') tabla(['Ref','Densidad','Parámetro','Causa'],gtbl('t-troc-dens'));
             titulo('Dimensiones antes reposo',2); tabla(['Var','M1','M2','M3','M4','M5'],gtbl('t-troc-antes'));
             titulo('Dimensiones después freído',2); tabla(['Var','M1','M2','M3','M4','M5'],gtbl('t-troc-despues'));
           } else {
