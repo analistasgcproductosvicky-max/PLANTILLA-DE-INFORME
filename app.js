@@ -905,13 +905,8 @@ async function cargarBorrador(id) {
     tw.style.display = 'none'; renderMP();
   }
   setTimeout(() => {
-    // Restaurar por secciones si existen, sino fallback al método antiguo
-    const secs = window._seccionesParaRestaurar || {};
-    if(Object.keys(secs).length > 0) {
-      Object.entries(secs).forEach(([secId, datos]) => restaurarSeccion(secId, datos));
-    } else {
-      restaurarDatos(d); // fallback para borradores antiguos
-    }
+    // Restaurar: usar blob principal (más completo y confiable)
+    restaurarDatos(d);
     if(d.tipo==='pe') setTimeout(renderTabs,200);
     window._seccionesParaRestaurar = null;
   }, 300);
