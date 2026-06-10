@@ -71,7 +71,7 @@ function mkResp(area, label) {
 
 function tbl(id, headers, rows = 2) {
   const ths = headers.map(h => `<th>${h}</th>`).join('');
-  const tds = headers.map(() => `<td><input type="text" oninput="autoSave()"></td>`).join('');
+  const tds = headers.map(() => `<td><input type="text" oninput="autoSave(this)"></td>`).join('');
   const rs  = Array.from({length: rows}, () => `<tr>${tds}</tr>`).join('');
   return `<div class="twrap"><table class="reg" id="${id}">
     <thead><tr>${ths}</tr></thead><tbody>${rs}</tbody>
@@ -85,9 +85,9 @@ function tblSel(id, headers, selCol, opts = ['Sí','No'], rows = 2) {
     const tds = headers.map((h, i) => {
       if(i === selCol) {
         const ops = opts.map(o => `<option>${o}</option>`).join('');
-        return `<td><select onchange="autoSave()">${ops}</select></td>`;
+        return `<td><select onchange="autoSave(this)">${ops}</select></td>`;
       }
-      return `<td><input type="text" oninput="autoSave()"></td>`;
+      return `<td><input type="text" oninput="autoSave(this)"></td>`;
     }).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
@@ -101,8 +101,8 @@ function tblTolvas(id, rows = 2) {
   // Special table: fecha de produccion auto-calculates dias almacenados
   const ths = ['Producto / Referencia','Tolva','Fecha de producción','Días almacenados'].map(h=>`<th>${h}</th>`).join('');
   const rowHtml = Array.from({length: rows}, (_, ri) => `<tr>
-    <td><input type="text" oninput="autoSave()"></td>
-    <td><input type="text" oninput="autoSave()"></td>
+    <td><input type="text" oninput="autoSave(this)"></td>
+    <td><input type="text" oninput="autoSave(this)"></td>
     <td><input type="date" oninput="calcDiasTolva(this)" style="width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;padding:4px"></td>
     <td><input type="text" readonly style="width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;padding:4px;color:var(--rojo);font-weight:600"></td>
   </tr>`).join('');
@@ -131,9 +131,9 @@ function addRowTolvas(id) {
   if(!tb) return;
   const tr = document.createElement('tr');
   // col 0: texto
-  const td0=document.createElement('td'); const i0=document.createElement('input'); i0.type='text'; i0.addEventListener('input',autoSave); td0.appendChild(i0); tr.appendChild(td0);
+  const td0=document.createElement('td'); const i0=document.createElement('input'); i0.type='text'; i0.addEventListener('input',e=>autoSave(e.target)); td0.appendChild(i0); tr.appendChild(td0);
   // col 1: texto
-  const td1=document.createElement('td'); const i1=document.createElement('input'); i1.type='text'; i1.addEventListener('input',autoSave); td1.appendChild(i1); tr.appendChild(td1);
+  const td1=document.createElement('td'); const i1=document.createElement('input'); i1.type='text'; i1.addEventListener('input',e=>autoSave(e.target)); td1.appendChild(i1); tr.appendChild(td1);
   // col 2: date
   const td2=document.createElement('td'); const i2=document.createElement('input'); i2.type='date';
   Object.assign(i2.style,{width:'100%',border:'none',background:'transparent',fontFamily:"'DM Sans',sans-serif",fontSize:'12px',padding:'4px'});
@@ -172,7 +172,7 @@ function addRowRefSabor(id) {
     const sel = document.createElement('select');
     sel.innerHTML = `<option value="">Seleccione...</option>${tipo==='refs'?refs:sabs}`;
     Object.assign(sel.style, {width:'100%',border:'none',background:'transparent',fontFamily:"'DM Sans',sans-serif",fontSize:'12px',padding:'4px'});
-    sel.addEventListener('change', autoSave);
+    sel.addEventListener('change', e=>autoSave(e.target));
     td.appendChild(sel); tr.appendChild(td);
   });
   tb.appendChild(tr);
@@ -249,7 +249,7 @@ function addRow(id, n) {
   for(let i = 0; i < n; i++) {
     const td = document.createElement('td');
     const inp = document.createElement('input'); inp.type = 'text';
-    inp.addEventListener('input', autoSave);
+    inp.addEventListener('input', e=>autoSave(e.target));
     td.appendChild(inp); tr.appendChild(td);
   }
   tb.appendChild(tr);
@@ -264,10 +264,10 @@ function addRowSel(id, tipos) {
     if(t === 'sel') {
       const sel = document.createElement('select');
       ['Sí','No'].forEach(o => { const op = document.createElement('option'); op.textContent = o; sel.appendChild(op); });
-      sel.addEventListener('change', autoSave); td.appendChild(sel);
+      sel.addEventListener('change', e=>autoSave(e.target)); td.appendChild(sel);
     } else {
       const inp = document.createElement('input'); inp.type = 'text';
-      inp.addEventListener('input', autoSave); td.appendChild(inp);
+      inp.addEventListener('input', e=>autoSave(e.target)); td.appendChild(inp);
     }
     tr.appendChild(td);
   });
@@ -283,13 +283,13 @@ function agregarFotos(input) {
       const img  = document.createElement('img'); img.src = e.target.result; img.className = 'fthumb';
       img.onclick = () => verFoto(img.src);
       const del  = document.createElement('button'); del.className = 'fdel'; del.textContent = '×';
-      del.onclick = () => { item.remove(); autoSaveFoto(); };
+      del.onclick = () => { item.remove(); autoSaveFoto(grid); };
       const cap  = document.createElement('input'); cap.type = 'text'; cap.className = 'fcap-inp';
       cap.placeholder = 'Descripción...';
-      cap.addEventListener('input', autoSave);
+      cap.addEventListener('input', e=>autoSave(e.target));
       item.appendChild(img); item.appendChild(del); item.appendChild(cap);
       grid.appendChild(item);
-      autoSaveFoto();
+      autoSaveFoto(grid);
     };
     reader.readAsDataURL(file);
   });
@@ -359,7 +359,7 @@ function agregarResp(tagsId, nombre, menuId) {
     document.getElementById(menuId)?.classList.remove('show'); return;
   }
   const tag = document.createElement('div'); tag.className = 'resp-tag'; tag.dataset.nombre = nombre;
-  tag.innerHTML = `${nombre}<button onclick="this.parentElement.remove();autoSave()" title="Quitar">×</button>`;
+  tag.innerHTML = `${nombre}<button onclick="this.parentElement.remove();autoSave(this)" title="Quitar">×</button>`;
   tags.appendChild(tag);
   document.getElementById(menuId)?.classList.remove('show');
   if(window._respPortal) { window._respPortal.remove(); window._respPortal = null; }
@@ -385,6 +385,8 @@ function detectarSeccion(el) {
 
 // autoSave por sección — sólo guarda la sección del elemento que cambió
 function autoSave(el) {
+  // Accept Element, Event, or nothing
+  if(el instanceof Event) el = el.target;
   const secId = (el instanceof Element) ? detectarSeccion(el) : 'general';
   _editandoSec = secId;
   _ultimoCambioLocal = Date.now();
@@ -394,6 +396,7 @@ function autoSave(el) {
 }
 
 function autoSaveFoto(el) {
+  if(el instanceof Event) el = el.target;
   const secId = (el instanceof Element) ? detectarSeccion(el) : 'general';
   _editandoSec = secId;
   _ultimoCambioLocal = Date.now();
@@ -565,7 +568,7 @@ function restaurarSeccion(secId, d) {
         const img = document.createElement('img'); img.src=f.src; img.className='fthumb';
         img.onclick = () => verFoto(img.src);
         const del = document.createElement('button'); del.className='fdel'; del.textContent='×';
-        del.onclick = () => { item.remove(); autoSaveFoto(); };
+        del.onclick = () => { item.remove(); autoSaveFoto(grid); };
         const cap = document.createElement('input'); cap.type='text'; cap.className='fcap-inp';
         cap.placeholder='Descripción...'; cap.value=f.cap||'';
         cap.addEventListener('input', e => autoSave(e.target));
@@ -695,10 +698,10 @@ function restaurarDatos(d) {
         const img = document.createElement('img'); img.src = f.src; img.className = 'fthumb';
         img.onclick = () => verFoto(img.src);
         const del = document.createElement('button'); del.className = 'fdel'; del.textContent = '×';
-        del.onclick = () => { item.remove(); autoSaveFoto(); };
+        del.onclick = () => { item.remove(); autoSaveFoto(grid); };
         const cap = document.createElement('input'); cap.type = 'text'; cap.className = 'fcap-inp';
         cap.placeholder = 'Descripción...'; cap.value = f.cap || '';
-        cap.addEventListener('input', autoSave);
+        cap.addEventListener('input', e=>autoSave(e.target));
         item.appendChild(img); item.appendChild(del); item.appendChild(cap);
         grid.appendChild(item);
       });
@@ -767,6 +770,13 @@ function _abrirFormularioNuevo(tipo) {
   tipoActual = tipo; borradorId = tipo + '_' + Date.now(); createdAt = Date.now(); estadoActual = 'construccion';
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
+  // Crear borrador en Firebase inmediatamente
+  if(window._fb) window._fb.guardar(borradorId, {
+    tipo: tipoActual, createdAt, estado: 'construccion',
+    fecha: document.querySelector('[data-campo="fecha"]')?.value || new Date().toISOString().slice(0,10),
+    turno: document.querySelector('[data-campo="turno"]')?.value || '1'
+  });
+
   const tw = document.getElementById('tabs-wrap');
   if(tipo === 'emp') {
     document.getElementById('h-titulo').textContent = 'Empaque';
