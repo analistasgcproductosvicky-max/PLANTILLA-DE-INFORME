@@ -1003,10 +1003,10 @@ function renderPE() {
         tbl(`t-${k}-pell-pnc`,['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
       )}
       <div class="pregunta">
-        <div class="preg-label"><span class="pnum">D</span>Acciones correctivas del turno</div>
-        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa las acciones implementadas..." oninput="autoSave()"></textarea>
+        <div class="preg-label"><span class="pnum">D</span>Otras Novedades</div>
+        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa otras novedades presentadas durante el turno..." oninput="autoSave()"></textarea>
       </div>
-      ${foto('Fotos de PNC / tanque','Evidencia fotográfica',`f_${k}_pell`)}`;
+      ${foto('Evidencia Fotográfica','Si Aplica',`f_${k}_pell`)}`;
   }
 
   function secLineaFlex(id, icon, nombre, opPrincipal, pregsPrincipal) {
