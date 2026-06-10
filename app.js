@@ -7,7 +7,7 @@ const PERSONAS = [
   'Juan Sebastián Parra','Oscar Bautista','Juan Pablo Rodríguez',
   'Yennireth Villarreal','Gloria Hernández','Valeria Hernández',
   'Cristian Aranda','Ángel Ramírez','Katherine Florez',
-  'María Alejandra Cárdenas','Ely Padilla'
+  'María Alejandra Cárdenas','Ely Padilla','David Diaz'
 ];
 
 const PERSONAS_AREA = {
@@ -26,7 +26,7 @@ let PAPA_SABORES     = ['Natural','Pollo','Limón','BBQ','Picante','Mayonesa','C
 const SECCIONES_PE = ['extruido','rosquilla','tortillas','trocillo','papa','pellet'];
 const LABEL_SEC = {
   extruido:'Extruido', rosquilla:'Rosquilla', tortillas:'Tortillas',
-  trocillo:'Trocillo', daf:'Papa DAF', pc4:'Papa PC4', pc6:'Papa PC6', pellet:'Pellet'
+  trocillo:'Trocillo', papa:'Papa', pellet:'Pellet'
 };
 
 /* ══════ ESTADO ══════ */
