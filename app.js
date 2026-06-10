@@ -947,7 +947,7 @@ function noOperoBloque(key, fid) {
     `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
      <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
      ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
-    `<div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿Por qué la línea estuvo parada sin limpieza?</div>
+    `<div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿Por qué la línea estuvo parada?</div>
      <textarea class="rdet" data-campo="${key}_paro_motivo" placeholder="Ej. Personal insuficiente, mantenimiento programado, falla eléctrica..." oninput="autoSave()" style="min-height:56px"></textarea>`
   );
 }
