@@ -385,55 +385,44 @@ function detectarSeccion(el) {
 
 // autoSave por sección — sólo guarda la sección del elemento que cambió
 function autoSave(el) {
-  // Accept Element, Event, or nothing
   if(el instanceof Event) el = el.target;
-  const secId = (el instanceof Element) ? detectarSeccion(el) : 'general';
-  _editandoSec = secId;
+  if(el instanceof Element) {
+    const sec = el.closest('.seccion');
+    if(sec?.id) _editandoSec = sec.id.replace('sec-','');
+  }
   _ultimoCambioLocal = Date.now();
   document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  clearTimeout(_secTimers[secId]);
-  _secTimers[secId] = setTimeout(() => guardarSeccion(secId), 800);
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(guardarNube, 800);
 }
 
 function autoSaveFoto(el) {
   if(el instanceof Event) el = el.target;
-  const secId = (el instanceof Element) ? detectarSeccion(el) : 'general';
-  _editandoSec = secId;
+  if(el instanceof Element) {
+    const sec = el.closest('.seccion');
+    if(sec?.id) _editandoSec = sec.id.replace('sec-','');
+  }
   _ultimoCambioLocal = Date.now();
   document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  clearTimeout(_secTimers[secId]);
-  _secTimers[secId] = setTimeout(() => guardarSeccion(secId), 300);
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(guardarNube, 300);
 }
 
-// Guardar UNA sección en Firebase
-async function guardarSeccion(secId) {
-  if(!window._fb || !borradorId) return;
-  const datos = recopilarSeccion(secId);
-  const ok = await window._fb.saveSeccion(borradorId, secId, datos);
-  // También actualizar metadatos del borrador principal
-  await window._fb.guardar(borradorId, {
-    tipo: tipoActual, createdAt: createdAt || Date.now(),
-    estado: estadoActual || 'construccion',
-    fecha: document.querySelector('[data-campo="fecha"]')?.value || '',
-    turno: document.querySelector('[data-campo="turno"]')?.value || ''
-  });
-  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
-}
-
-// guardarNube: guarda TODAS las secciones (para el botón Guardar y Finalizar)
 async function guardarNube() {
-  if(!window._fb) { document.getElementById('autosave-lbl').textContent = '⚠️ Sin conexión'; return; }
-  const todas = recopilarTodasSecciones();
-  for(const [secId, datos] of Object.entries(todas)) {
-    await window._fb.saveSeccion(borradorId, secId, datos);
+  if(!window._fb || !borradorId) {
+    document.getElementById('autosave-lbl').textContent = '⚠️ Sin conexión';
+    return;
   }
-  await window._fb.guardar(borradorId, {
-    tipo: tipoActual, createdAt: createdAt || Date.now(),
-    estado: estadoActual || 'construccion',
-    fecha: document.querySelector('[data-campo="fecha"]')?.value || '',
-    turno: document.querySelector('[data-campo="turno"]')?.value || ''
-  });
-  document.getElementById('autosave-lbl').textContent = '☁️ Guardado';
+  const datos = recopilarDatos();
+  const ok = await window._fb.guardar(borradorId, datos);
+  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
+  // Secciones individuales para colaboración en PE (en segundo plano)
+  if(ok && tipoActual === 'pe') {
+    document.querySelectorAll('.seccion[id]').forEach(secEl => {
+      const secId = secEl.id.replace('sec-','');
+      window._fb.saveSeccion(borradorId, secId, recopilarSeccion(secId)).catch(()=>{});
+    });
+  }
 }
 
 async function guardarBorrador() {
