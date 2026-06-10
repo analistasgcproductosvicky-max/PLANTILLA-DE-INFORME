@@ -1011,7 +1011,7 @@ function renderPE() {
 
   function secLineaFlex(id, icon, nombre, opPrincipal, pregsPrincipal) {
     const k = id;
-    const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
+    const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita','Otro'];
     const pelletOpts = PELLETS.map(p =>
       `<button class="rbtn" style="font-size:11px" onclick="togglePelletLinea('${k}',this,'${p}')">${p}</button>`
     ).join('');
@@ -1031,6 +1031,8 @@ function renderPE() {
              <div class="preg-label" style="margin-bottom:6px"><span class="pnum">a</span>¿Qué tipo de pellet se procesó? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
              <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
+             <div id="${k}-pellet-otro" style="display:none;margin-top:6px">
+              <input class="rinp" type="text" data-campo="${k}_pellet_otro_det" placeholder="Especificar tipo de pellet..." oninput="autoSave()">
            </div>
            ${tbl('t-linea-pell-pell-prod',['Referencia','% Saborización','Observaciones'],2)}
            ${bloquesPellet(k)}`
@@ -1058,7 +1060,9 @@ function renderPE() {
               <div class="preg-label" style="margin-bottom:6px"><span class="pnum">•</span>¿Qué tipo de pellet? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
               <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
               <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
-            </div>
+             <div id="${k}-pellet-otro" style="display:none;margin-top:6px">
+              <input class="rinp" type="text" data-campo="${k}_pellet_otro_det" placeholder="Especificar tipo de pellet..." oninput="autoSave()">
+           </div>
             ${tbl(`t-${k}-pell-prod`,['Referencia','% Saborización','Observaciones'],2)}
             ${bloquesPellet(k)}
           </div>`
@@ -1675,6 +1679,9 @@ function togglePelletLinea(lineaId, btn, pelletTipo) {
   const sel = [...btn.closest('div').querySelectorAll('.rbtn.si')].map(b => b.textContent.trim());
   const inp = document.getElementById(`${lineaId}_proceso_pellet`);
   if(inp) inp.value = sel.join(',');
+  // Mostrar campo de texto si se selecciona "Otro"
+  const otroEl = document.getElementById(`${lineaId}-pellet-otro`);
+  if(otroEl) otroEl.style.display = sel.includes('Otro') ? 'block' : 'none';
   autoSave();
 }
 
