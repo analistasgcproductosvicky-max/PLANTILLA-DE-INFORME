@@ -29,6 +29,7 @@ const LABEL_SEC = {
   trocillo:'Trocillo', papa:'Papa', pellet:'Pellet'
 };
 
+
 /* ══════ ESTADO ══════ */
 let tipoActual = '';
 let borradorId = '';
