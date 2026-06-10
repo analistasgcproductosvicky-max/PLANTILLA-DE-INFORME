@@ -409,19 +409,19 @@ function autoSaveFoto(el) {
 }
 
 async function guardarNube() {
-  if(!window._fb || !borradorId) {
-    document.getElementById('autosave-lbl').textContent = '⚠️ Sin conexión';
-    return;
-  }
-  const datos = recopilarDatos();
-  const ok = await window._fb.guardar(borradorId, datos);
-  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
-  // Secciones individuales para colaboración en PE (en segundo plano)
-  if(ok && tipoActual === 'pe') {
-    document.querySelectorAll('.seccion[id]').forEach(secEl => {
-      const secId = secEl.id.replace('sec-','');
-      window._fb.saveSeccion(borradorId, secId, recopilarSeccion(secId)).catch(()=>{});
-    });
+  const lbl = document.getElementById('autosave-lbl');
+  if(!window._fb) { if(lbl) lbl.textContent = '⚠️ Firebase no conectado'; return; }
+  if(!borradorId) { if(lbl) lbl.textContent = '⚠️ Sin ID de borrador'; return; }
+  if(lbl) lbl.textContent = '☁️ Guardando...';
+  try {
+    const datos = recopilarDatos();
+    const ok = await window._fb.guardar(borradorId, datos);
+    if(lbl) lbl.textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
+    if(!ok) console.error('guardarNube: fallo', borradorId);
+    // Colaboración por secciones desactivada temporalmente
+  } catch(e) {
+    console.error('guardarNube error:', e);
+    if(lbl) lbl.textContent = '⚠️ ' + (e.message||'Error');
   }
 }
 
@@ -950,26 +950,6 @@ function actualizarTab(s) {
 
 /* ══════ PRESENCIA ══════ */
 function iniciarRealtime() {
-  // Listener de secciones — aplica cambios remotos sólo si el usuario no está editando esa sección
-  window._fb.escucharSecciones(borradorId, cambios => {
-    const ahora = Date.now();
-    // Ignorar cambios que vinieron de este mismo usuario (< 3s desde último cambio local)
-    if(ahora - _ultimoCambioLocal < 3000) return;
-    Object.entries(cambios).forEach(([secId, datos]) => {
-      // No sobreescribir la sección que este usuario está editando ahora mismo
-      if(secId === _editandoSec) return;
-      restaurarSeccion(secId, datos);
-      // Flash visual para indicar que llegó un cambio remoto
-      const secEl = secId === 'general' ? null : document.getElementById('sec-' + secId);
-      if(secEl) {
-        secEl.style.outline = '2px solid var(--verde)';
-        setTimeout(() => secEl.style.outline = '', 1500);
-      }
-    });
-    document.getElementById('autosave-lbl').textContent = '🔄 Actualizado';
-    setTimeout(() => document.getElementById('autosave-lbl').textContent = '☁️ Guardado', 2000);
-  });
-
   window._fb.escucharEstados(borradorId, estados => {
     estadosRemotos = estados;
     SECCIONES_PE.forEach(s => actualizarTab(s));
