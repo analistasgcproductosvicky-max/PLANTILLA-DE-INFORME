@@ -71,7 +71,33 @@ window._fb = {
     _unsubP = onSnapshot(collection(db,'borradores',bid,'presencia'),
       s=>{const m={};s.forEach(d=>{m[d.id]=d.data();});cb(m);},e=>console.error(e));
   },
-  detener() { if(_unsubE){_unsubE();_unsubE=null;} if(_unsubP){_unsubP();_unsubP=null;} }
+  async saveSeccion(bid, sec, data) {
+    try { await setDoc(doc(db,'borradores',bid,'secciones',sec), {...data, _ts: Date.now()}); return true; }
+    catch(e){ console.error('saveSeccion:',e); return false; }
+  },
+  async getSeccion(bid, sec) {
+    try { const s=await getDoc(doc(db,'borradores',bid,'secciones',sec)); return s.exists()?s.data():null; }
+    catch(e){ return null; }
+  },
+  async getAllSecciones(bid) {
+    try { const s=await getDocs(collection(db,'borradores',bid,'secciones'));
+      const r={}; s.forEach(d=>{ r[d.id]=d.data(); }); return r; }
+    catch(e){ return {}; }
+  },
+  escucharSecciones(bid, cb) {
+    if(_unsubS) _unsubS();
+    _unsubS = onSnapshot(collection(db,'borradores',bid,'secciones'),
+      snap => {
+        const cambios = {};
+        snap.docChanges().forEach(ch => { if(ch.type!=='removed') cambios[ch.doc.id] = ch.doc.data(); });
+        if(Object.keys(cambios).length) cb(cambios);
+      }, e=>console.error('escucharSecciones:',e));
+  },
+  detener() {
+    if(_unsubE){_unsubE();_unsubE=null;}
+    if(_unsubP){_unsubP();_unsubP=null;}
+    if(_unsubS){_unsubS();_unsubS=null;}
+  }
 };
 window._fbReady = true;
 document.dispatchEvent(new Event('fbReady'));

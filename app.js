@@ -33,6 +33,9 @@ const LABEL_SEC = {
 let tipoActual = '';
 let borradorId = '';
 let autoTimer  = null;
+let _secTimers = {};       // per-section debounce timers
+let _editandoSec = null;  // section currently being edited by this user
+let _ultimoCambioLocal = 0; // timestamp of last local change
 let createdAt  = 0; // set once on form open, never updated
 let estadoActual = 'construccion'; // 'construccion' | 'finalizado'
 let presenciaRemota = {};
@@ -371,23 +374,63 @@ function getResp(area) {
 }
 
 /* ══════ GUARDADO ══════ */
-function autoSave() {
-  clearTimeout(autoTimer);
-  document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  autoTimer = setTimeout(guardarNube, 800);
+// ── Detectar a qué sección pertenece un elemento del DOM ──
+function detectarSeccion(el) {
+  const sec = el?.closest('.seccion');
+  if(sec?.id) return sec.id.replace('sec-','');
+  // Datos generales (fecha, turno, responsables) → sección 'general'
+  if(el?.closest('.datos-card') || el?.closest('[id^="resp-"]')) return 'general';
+  return 'general';
 }
 
-// Guardado inmediato para fotos (sin delay)
-function autoSaveFoto() {
-  clearTimeout(autoTimer);
+// autoSave por sección — sólo guarda la sección del elemento que cambió
+function autoSave(el) {
+  const secId = (el instanceof Element) ? detectarSeccion(el) : 'general';
+  _editandoSec = secId;
+  _ultimoCambioLocal = Date.now();
   document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  autoTimer = setTimeout(guardarNube, 300);
+  clearTimeout(_secTimers[secId]);
+  _secTimers[secId] = setTimeout(() => guardarSeccion(secId), 800);
 }
 
+function autoSaveFoto(el) {
+  const secId = (el instanceof Element) ? detectarSeccion(el) : 'general';
+  _editandoSec = secId;
+  _ultimoCambioLocal = Date.now();
+  document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
+  clearTimeout(_secTimers[secId]);
+  _secTimers[secId] = setTimeout(() => guardarSeccion(secId), 300);
+}
+
+// Guardar UNA sección en Firebase
+async function guardarSeccion(secId) {
+  if(!window._fb || !borradorId) return;
+  const datos = recopilarSeccion(secId);
+  const ok = await window._fb.saveSeccion(borradorId, secId, datos);
+  // También actualizar metadatos del borrador principal
+  await window._fb.guardar(borradorId, {
+    tipo: tipoActual, createdAt: createdAt || Date.now(),
+    estado: estadoActual || 'construccion',
+    fecha: document.querySelector('[data-campo="fecha"]')?.value || '',
+    turno: document.querySelector('[data-campo="turno"]')?.value || ''
+  });
+  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
+}
+
+// guardarNube: guarda TODAS las secciones (para el botón Guardar y Finalizar)
 async function guardarNube() {
   if(!window._fb) { document.getElementById('autosave-lbl').textContent = '⚠️ Sin conexión'; return; }
-  const ok = await window._fb.guardar(borradorId, recopilarDatos());
-  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
+  const todas = recopilarTodasSecciones();
+  for(const [secId, datos] of Object.entries(todas)) {
+    await window._fb.saveSeccion(borradorId, secId, datos);
+  }
+  await window._fb.guardar(borradorId, {
+    tipo: tipoActual, createdAt: createdAt || Date.now(),
+    estado: estadoActual || 'construccion',
+    fecha: document.querySelector('[data-campo="fecha"]')?.value || '',
+    turno: document.querySelector('[data-campo="turno"]')?.value || ''
+  });
+  document.getElementById('autosave-lbl').textContent = '☁️ Guardado';
 }
 
 async function guardarBorrador() {
@@ -398,6 +441,167 @@ async function guardarBorrador() {
 }
 
 /* ══════ RECOPILAR / RESTAURAR ══════ */
+
+// Recopilar datos de UNA sección (scope = elemento raíz de la sección)
+function recopilarSeccion(secId) {
+  const root = secId === 'general'
+    ? document.getElementById('form-content')
+    : document.getElementById('sec-' + secId);
+  if(!root) return {};
+  const d = {};
+  // Campos data-campo
+  root.querySelectorAll('[data-campo]').forEach(el => {
+    d[el.dataset.campo] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  // Si/No
+  const sinos = {};
+  root.querySelectorAll('.sino-row').forEach(row => {
+    const act = row.querySelector('.rbtn.si,.rbtn.no');
+    if(row.dataset.key) sinos[row.dataset.key] = act ? (act.classList.contains('si') ? 'si' : 'no') : '';
+  });
+  d._sinos = sinos;
+  // Responsables
+  const resp = {};
+  root.querySelectorAll('[id^="resp-"]').forEach(tags => {
+    resp[tags.id] = [...tags.querySelectorAll('.resp-tag')].map(t => t.dataset.nombre);
+  });
+  d._resp = resp;
+  // Fotos
+  const fotos = {};
+  root.querySelectorAll('.fgrid').forEach((grid, i) => {
+    if(!grid.dataset.fid) grid.dataset.fid = secId + '_fg' + i;
+    const items = [...grid.querySelectorAll('.fitem')].map(item => ({
+      src: item.querySelector('img')?.src || '',
+      cap: item.querySelector('.fcap-inp')?.value || ''
+    })).filter(f => f.src);
+    if(items.length) fotos[grid.dataset.fid] = items;
+  });
+  d._fotos = fotos;
+  // Tablas
+  const tablas = {};
+  root.querySelectorAll('table.reg[id]').forEach(t => {
+    tablas[t.id] = [...t.querySelectorAll('tbody tr')].map(tr =>
+      [...tr.querySelectorAll('input,select')].map(el => el.value)
+    );
+  });
+  d._tablas = tablas;
+  // Botones activos (rbtn.si que no son sino-row)
+  const btns = {};
+  root.querySelectorAll('.rbtn.si:not(.sino-row .rbtn)').forEach(b => {
+    if(b.id) btns[b.id] = true;
+  });
+  d._btns = btns;
+  return d;
+}
+
+// Recopilar todas las secciones
+function recopilarTodasSecciones() {
+  const secciones = { general: recopilarSeccion('general') };
+  document.querySelectorAll('.seccion[id]').forEach(sec => {
+    const secId = sec.id.replace('sec-','');
+    secciones[secId] = recopilarSeccion(secId);
+  });
+  return secciones;
+}
+
+// Restaurar UNA sección
+function restaurarSeccion(secId, d) {
+  if(!d) return;
+  const root = secId === 'general'
+    ? document.getElementById('form-content')
+    : document.getElementById('sec-' + secId);
+  if(!root) return;
+
+  // Campos
+  root.querySelectorAll('[data-campo]').forEach(el => {
+    const v = d[el.dataset.campo];
+    if(v !== undefined) { if(el.type === 'checkbox') el.checked = v; else el.value = v; }
+  });
+  // Si/No
+  if(d._sinos) {
+    root.querySelectorAll('.sino-row').forEach(row => {
+      const val = d._sinos[row.dataset.key];
+      if(!val) return;
+      row.querySelectorAll('.rbtn').forEach(b => b.classList.remove('si','no'));
+      const btn = [...row.querySelectorAll('.rbtn')].find(b =>
+        (val==='si' && b.textContent.trim()==='Sí') || (val==='no' && b.textContent.trim()==='No'));
+      if(btn) {
+        btn.classList.add(val);
+        const key2 = row.dataset.key;
+        const pregEl2 = document.getElementById('preg-'+key2) || row.closest('.pregunta');
+        if(pregEl2) {
+          const ccs = pregEl2.querySelector(`.cond-si[data-for="${key2}"]`);
+          const ccn = pregEl2.querySelector(`.cond-no[data-for="${key2}"]`);
+          if(ccs) ccs.style.display = val==='si'?'block':'none';
+          if(ccn) ccn.style.display = val==='no'?'block':'none';
+        }
+      }
+    });
+  }
+  // Responsables
+  if(d._resp) {
+    Object.entries(d._resp).forEach(([id, nombres]) => {
+      const tags = document.getElementById(id);
+      if(!tags || !nombres?.length) return;
+      tags.innerHTML = '';
+      nombres.forEach(nombre => {
+        if(!nombre) return;
+        const tag = document.createElement('div'); tag.className='resp-tag'; tag.dataset.nombre=nombre;
+        tag.innerHTML = `${nombre}<button onclick="this.parentElement.remove();autoSave(this)">×</button>`;
+        tags.appendChild(tag);
+      });
+    });
+  }
+  // Fotos
+  if(d._fotos) {
+    root.querySelectorAll('.fgrid').forEach((grid, i) => {
+      if(!grid.dataset.fid) grid.dataset.fid = secId + '_fg' + i;
+      const items = d._fotos[grid.dataset.fid];
+      if(!items?.length) return;
+      grid.innerHTML = '';
+      items.forEach(f => {
+        if(!f.src) return;
+        const item = document.createElement('div'); item.className='fitem';
+        const img = document.createElement('img'); img.src=f.src; img.className='fthumb';
+        img.onclick = () => verFoto(img.src);
+        const del = document.createElement('button'); del.className='fdel'; del.textContent='×';
+        del.onclick = () => { item.remove(); autoSaveFoto(); };
+        const cap = document.createElement('input'); cap.type='text'; cap.className='fcap-inp';
+        cap.placeholder='Descripción...'; cap.value=f.cap||'';
+        cap.addEventListener('input', e => autoSave(e.target));
+        item.appendChild(img); item.appendChild(del); item.appendChild(cap);
+        grid.appendChild(item);
+      });
+    });
+  }
+  // Tablas
+  if(d._tablas) {
+    Object.entries(d._tablas).forEach(([tid, filas]) => {
+      const t = document.getElementById(tid); if(!t) return;
+      const tb = t.querySelector('tbody');
+      const cols = filas[0]?.length || 0;
+      const isTolvas = tid === 't-emp-tolvas';
+      while(tb.rows.length < filas.length) {
+        if(isTolvas) addRowTolvas(tid); else addRow(tid, cols);
+      }
+      [...tb.rows].forEach((tr, ri) => {
+        if(!filas[ri]) return;
+        [...tr.querySelectorAll('input,select')].forEach((el,ci) => {
+          if(filas[ri][ci]!==undefined) el.value=filas[ri][ci];
+        });
+        if(isTolvas) { const di=tr.querySelectorAll('input')[2]; if(di) calcDiasTolva(di); }
+      });
+    });
+  }
+  // Botones activos
+  if(d._btns) {
+    Object.keys(d._btns).forEach(id => {
+      const b = document.getElementById(id);
+      if(b) b.classList.add('si');
+    });
+  }
+}
+
 function recopilarDatos() {
   const d = { tipo: tipoActual, createdAt: createdAt || Date.now(), estado: estadoActual || 'construccion' };
   // Campos data-campo
@@ -569,6 +773,7 @@ function _abrirFormularioNuevo(tipo) {
     document.getElementById('h-sub').textContent = 'Informe por turno';
     tw.style.display = 'none';
     renderEmpaque();
+    if(borradorId && window._fb) setTimeout(iniciarRealtime, 500);
   } else if(tipo === 'pe') {
     document.getElementById('h-titulo').textContent = 'Procesos';
     document.getElementById('h-sub').textContent = 'Informe por turno';
@@ -580,6 +785,7 @@ function _abrirFormularioNuevo(tipo) {
     document.getElementById('h-sub').textContent = 'Informe diario';
     tw.style.display = 'none';
     renderMP();
+    if(borradorId && window._fb) setTimeout(iniciarRealtime, 500);
   }
   window.scrollTo(0,0);
 }
@@ -688,7 +894,17 @@ async function cargarBorrador(id) {
     document.getElementById('h-sub').textContent = 'Informe diario';
     tw.style.display = 'none'; renderMP();
   }
-  setTimeout(() => { restaurarDatos(d); if(d.tipo==='pe') setTimeout(renderTabs,200); }, 300);
+  setTimeout(() => {
+    // Restaurar por secciones si existen, sino fallback al método antiguo
+    const secs = window._seccionesParaRestaurar || {};
+    if(Object.keys(secs).length > 0) {
+      Object.entries(secs).forEach(([secId, datos]) => restaurarSeccion(secId, datos));
+    } else {
+      restaurarDatos(d); // fallback para borradores antiguos
+    }
+    if(d.tipo==='pe') setTimeout(renderTabs,200);
+    window._seccionesParaRestaurar = null;
+  }, 300);
   window.scrollTo(0,0);
   toast('✓ Borrador cargado','verde');
   setTimeout(actualizarBtnFinalizar, 400);
@@ -740,6 +956,26 @@ function actualizarTab(s) {
 
 /* ══════ PRESENCIA ══════ */
 function iniciarRealtime() {
+  // Listener de secciones — aplica cambios remotos sólo si el usuario no está editando esa sección
+  window._fb.escucharSecciones(borradorId, cambios => {
+    const ahora = Date.now();
+    // Ignorar cambios que vinieron de este mismo usuario (< 3s desde último cambio local)
+    if(ahora - _ultimoCambioLocal < 3000) return;
+    Object.entries(cambios).forEach(([secId, datos]) => {
+      // No sobreescribir la sección que este usuario está editando ahora mismo
+      if(secId === _editandoSec) return;
+      restaurarSeccion(secId, datos);
+      // Flash visual para indicar que llegó un cambio remoto
+      const secEl = secId === 'general' ? null : document.getElementById('sec-' + secId);
+      if(secEl) {
+        secEl.style.outline = '2px solid var(--verde)';
+        setTimeout(() => secEl.style.outline = '', 1500);
+      }
+    });
+    document.getElementById('autosave-lbl').textContent = '🔄 Actualizado';
+    setTimeout(() => document.getElementById('autosave-lbl').textContent = '☁️ Guardado', 2000);
+  });
+
   window._fb.escucharEstados(borradorId, estados => {
     estadosRemotos = estados;
     SECCIONES_PE.forEach(s => actualizarTab(s));
@@ -811,9 +1047,9 @@ function renderEmpaque() {
   const c = document.getElementById('form-content');
   c.innerHTML = `
   <div class="datos-card">
-    <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave()"></div>
+    <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave(this)"></div>
     <div class="dato-item"><label>Turno</label>
-      <select class="dato-inp" data-campo="turno" onchange="autoSave()">
+      <select class="dato-inp" data-campo="turno" onchange="autoSave(this)">
         <option>1</option><option>2</option><option>3</option>
       </select>
     </div>
@@ -836,7 +1072,7 @@ function renderEmpaque() {
     </div>
     <div class="sec-body ab">
       ${preg(1,'¿Se lavaron máquinas durante el turno?','emp_lavado',
-        `<textarea class="rdet" data-campo="emp_lavado_cuales" placeholder="¿Qué máquinas se lavaron? Nombre y número..." oninput="autoSave()"></textarea>
+        `<textarea class="rdet" data-campo="emp_lavado_cuales" placeholder="¿Qué máquinas se lavaron? Nombre y número..." oninput="autoSave(this)"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de las máquinas lavadas</div>
          ${foto('Adjuntar foto de cada máquina lavada','Una foto por máquina','f_lavado')}`
       )}
@@ -870,13 +1106,13 @@ function renderEmpaque() {
       )}
 
       ${preg(7,'¿Hubo novedades con fechas de empaque?','emp_fechas',
-        `<textarea class="rdet" data-campo="emp_fechas_accion" placeholder="¿Qué se hizo? Describa la acción tomada..." oninput="autoSave()"></textarea>
+        `<textarea class="rdet" data-campo="emp_fechas_accion" placeholder="¿Qué se hizo? Describa la acción tomada..." oninput="autoSave(this)"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de la novedad</div>
          ${foto('Adjuntar evidencia fotográfica','Foto de la novedad de fechas','f_fechas')}`
       )}
 
       ${preg(8,'¿Hay algún cambio o autorización de producto que no se saca habitualmente?','emp_cambios',
-        `<textarea class="rdet" data-campo="emp_cambios_cual" placeholder="¿Cuál producto y quién autorizó?" oninput="autoSave()"></textarea>
+        `<textarea class="rdet" data-campo="emp_cambios_cual" placeholder="¿Cuál producto y quién autorizó?" oninput="autoSave(this)"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de la novedad / autorización</div>
          ${foto('Adjuntar evidencia fotográfica','Foto del cambio o autorización','f_cambios')}`
       )}
@@ -897,7 +1133,7 @@ function renderEmpaque() {
               <button class="rbtn" onclick="siNo(this,'no')">No</button>
             </div>
             <div class="cond-no" style="display:none;margin-top:6px">
-              <textarea class="rdet" data-campo="emp_rx1_motivo" placeholder="¿Por qué no está operando RX1?" oninput="autoSave()" style="min-height:50px"></textarea>
+              <textarea class="rdet" data-campo="emp_rx1_motivo" placeholder="¿Por qué no está operando RX1?" oninput="autoSave(this)" style="min-height:50px"></textarea>
             </div>
           </div>
           <div>
@@ -907,7 +1143,7 @@ function renderEmpaque() {
               <button class="rbtn" onclick="siNo(this,'no')">No</button>
             </div>
             <div class="cond-no" style="display:none;margin-top:6px">
-              <textarea class="rdet" data-campo="emp_rx2_motivo" placeholder="¿Por qué no está operando RX2?" oninput="autoSave()" style="min-height:50px"></textarea>
+              <textarea class="rdet" data-campo="emp_rx2_motivo" placeholder="¿Por qué no está operando RX2?" oninput="autoSave(this)" style="min-height:50px"></textarea>
             </div>
           </div>
         </div>
@@ -921,7 +1157,7 @@ function renderEmpaque() {
 
       <div class="pregunta">
         <div class="preg-label"><span class="pnum">12</span>Otras novedades del turno</div>
-        <textarea class="rdet" data-campo="emp_otras" style="min-height:80px" placeholder="Describa cualquier otra novedad relevante del turno..." oninput="autoSave()"></textarea>
+        <textarea class="rdet" data-campo="emp_otras" style="min-height:80px" placeholder="Describa cualquier otra novedad relevante del turno..." oninput="autoSave(this)"></textarea>
         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de otras novedades</div>
         <div class="fzona" onclick="this.querySelector('input').click()">
           <input type="file" accept="image/*" multiple onchange="agregarFotos(this)">
@@ -943,11 +1179,11 @@ function renderEmpaque() {
 
 function noOperoBloque(key, fid) {
   return preg('a','¿Se hizo limpieza de la línea?',`${key}_limp_paro`,
-    `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
+    `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave(this)"></textarea>
      <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
      ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
     `<div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿Por qué la línea estuvo parada sin limpieza?</div>
-     <textarea class="rdet" data-campo="${key}_paro_motivo" placeholder="Ej. Personal insuficiente, mantenimiento programado, falla eléctrica..." oninput="autoSave()" style="min-height:56px"></textarea>`
+     <textarea class="rdet" data-campo="${key}_paro_motivo" placeholder="Ej. Personal insuficiente, mantenimiento programado, falla eléctrica..." oninput="autoSave(this)" style="min-height:56px"></textarea>`
   );
 }
 
@@ -962,7 +1198,7 @@ function renderPE() {
         `<div class="nota-info">Complete la información de operación</div>
         <div class="pregunta">
           <div class="preg-label"><span class="pnum">a</span>¿Qué extrusor se trabajó en esta línea?</div>
-          <textarea class="rdet" data-campo="${k}_extrusor" placeholder="Ej. Extrusor 2..." oninput="autoSave()"></textarea>
+          <textarea class="rdet" data-campo="${k}_extrusor" placeholder="Ej. Extrusor 2..." oninput="autoSave(this)"></textarea>
         </div>
         ${preg('b','¿Se hizo limpieza de extrusores?',`${k}_limp_ext`,
           tbl(`t-${k}-limp`,['Extrusor limpiado','Tipo de limpieza','Observaciones'],1)
@@ -975,12 +1211,12 @@ function renderPE() {
           tbl(`t-${k}-ingred`,['Ingrediente','Cantidad (kg)','Motivo'],1)
         )}
         ${preg('e','¿Las densidades del producto terminado cumplen con los parámetros?',`${k}_dens`,``,
-          `<textarea class="rdet" data-campo="${k}_dens_mot" placeholder="¿Por qué no cumplen? Describa la desviación..." oninput="autoSave()"></textarea>
+          `<textarea class="rdet" data-campo="${k}_dens_mot" placeholder="¿Por qué no cumplen? Describa la desviación..." oninput="autoSave(this)"></textarea>
            <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de la desviación</div>
            ${foto('Adjuntar foto','Foto si no cumple',`f_${k}_dens`)}`
         )}
         ${preg('f','¿Las dimensiones del producto terminado cumplen con los parámetros?',`${k}_dim`,``,
-          `<textarea class="rdet" data-campo="${k}_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave()"></textarea>
+          `<textarea class="rdet" data-campo="${k}_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave(this)"></textarea>
            <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de lo que no cumple</div>
            ${foto('Adjuntar fotos de incumplimientos','Fotos de desviaciones',`f_${k}_dim`)}`
         )}
@@ -1004,7 +1240,7 @@ function renderPE() {
       )}
       <div class="pregunta">
         <div class="preg-label"><span class="pnum">D</span>Acciones correctivas del turno</div>
-        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa las acciones implementadas..." oninput="autoSave()"></textarea>
+        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa las acciones implementadas..." oninput="autoSave(this)"></textarea>
       </div>
       ${foto('Fotos de PNC / tanque','Evidencia fotográfica',`f_${k}_pell`)}`;
   }
@@ -1090,7 +1326,7 @@ function renderPE() {
       </div>
       <input type="hidden" data-campo="tort_procesado" id="tort_procesado">
       <div id="tort-otro-det" style="display:none;margin-top:6px">
-        <input class="rinp" type="text" data-campo="tort_otro_det" placeholder="Especifique..." oninput="autoSave()">
+        <input class="rinp" type="text" data-campo="tort_otro_det" placeholder="Especifique..." oninput="autoSave(this)">
       </div>
     </div>
 
@@ -1126,9 +1362,9 @@ function renderPE() {
     </div>
 
     ${preg('f','¿Se garantizó la selección de PNC a la salida del horno y del freedor?','tort_sel',
-      `<textarea class="rdet" data-campo="tort_sel_si_det" placeholder="Describa cómo se realizó la selección en horno y freedor..." oninput="autoSave()"></textarea>
+      `<textarea class="rdet" data-campo="tort_sel_si_det" placeholder="Describa cómo se realizó la selección en horno y freedor..." oninput="autoSave(this)"></textarea>
        ${foto('📷 Fotos de selección PNC — horno y freedor','Adjuntar fotos de ambos puntos','f_tort_sel')}`,
-      `<textarea class="rdet" data-campo="tort_sel_no_det" placeholder="¿Por qué no se garantizó? Describa qué pasó..." oninput="autoSave()"></textarea>`
+      `<textarea class="rdet" data-campo="tort_sel_no_det" placeholder="¿Por qué no se garantizó? Describa qué pasó..." oninput="autoSave(this)"></textarea>`
     )}
 
     ${preg('g','¿Hubo producto no conforme?','tort_pnc',
@@ -1164,7 +1400,7 @@ function renderPE() {
     </div>
     ${preg('d','¿Se realizaron reprocesos?','troc_rep',tbl('t-troc-rep',['Tipo','Cantidad (kg)','Motivo']))}
     ${preg('e','¿Las dimensiones presentaron incumplimientos?','troc_dim',``,
-      `<textarea class="rdet" data-campo="troc_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave()"></textarea>
+      `<textarea class="rdet" data-campo="troc_dim_mot" placeholder="¿Por qué no cumplen? ¿Qué se hizo?" oninput="autoSave(this)"></textarea>
        ${foto('Foto si no cumple','Solo si hubo incumplimiento','f_troc_dim')}`
     )}
     ${preg('f','¿Las densidades presentaron desviaciones?','troc_dens',``,
@@ -1178,25 +1414,25 @@ function renderPE() {
     <div class="twrap"><table class="reg" id="t-troc-antes">
       <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
       <tbody>
-        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td></tr>
       </tbody>
     </table></div>
     <div class="preg-label" style="margin:12px 0 8px"><strong>Dimensiones después del freído</strong></div>
     <div class="twrap"><table class="reg" id="t-troc-despues">
       <thead><tr><th>Variable</th><th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th></tr></thead>
       <tbody>
-        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
-        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td><td><input type="text" oninput="autoSave()"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Largo</td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Ancho</td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td></tr>
+        <tr><td style="font-weight:600;background:var(--gris)">Espesor</td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td><td><input type="text" oninput="autoSave(this)"></td></tr>
       </tbody>
     </table></div>`;
 
   const pregsPelletEst = `
     ${preg('a','¿Se realizaron limpiezas?','pell_limp',
-      `<select class="rinp" data-campo="pell_limp_tipo" style="margin-bottom:6px" onchange="autoSave()"><option>Profunda</option><option>Parcial</option><option>Cambio de referencia</option></select>
-       <textarea class="rdet" data-campo="pell_limp_det" placeholder="Describa las limpiezas..." oninput="autoSave()"></textarea>`
+      `<select class="rinp" data-campo="pell_limp_tipo" style="margin-bottom:6px" onchange="autoSave(this)"><option>Profunda</option><option>Parcial</option><option>Cambio de referencia</option></select>
+       <textarea class="rdet" data-campo="pell_limp_det" placeholder="Describa las limpiezas..." oninput="autoSave(this)"></textarea>`
     )}
     <div class="pregunta">
       <div class="preg-label"><span class="pnum">b</span>Tipo de aceite</div>
@@ -1217,7 +1453,7 @@ function renderPE() {
     ${preg('f','¿Se generó producto no conforme?','pell_pnc',tbl('t-pell-pnc',['Referencia','Causa','Cantidad','¿Qué se hizo?']))}
     <div class="pregunta">
       <div class="preg-label"><span class="pnum">g</span>TPM del turno</div>
-      <input class="rinp" type="text" data-campo="pell_tpm" placeholder="Registro TPM" oninput="autoSave()">
+      <input class="rinp" type="text" data-campo="pell_tpm" placeholder="Registro TPM" oninput="autoSave(this)">
     </div>
     <div class="sep"></div>
     ${tbl('t-pellet',['Referencia','% Saborización','T° (°C)','¿Cumple T°?','Observaciones'])}
@@ -1245,12 +1481,12 @@ function renderPE() {
         </div>
         <input type="hidden" data-campo="ros_queso_prov" id="ros_queso_prov">
         <div id="ros-queso-otro" style="display:none;margin-bottom:8px">
-          <input class="rinp" type="text" data-campo="ros_queso_otro_nombre" placeholder="¿Cuál proveedor?" oninput="autoSave()">
+          <input class="rinp" type="text" data-campo="ros_queso_otro_nombre" placeholder="¿Cuál proveedor?" oninput="autoSave(this)">
         </div>
         <div id="ros-queso-mezcla" style="display:none;margin-bottom:8px">
-          <textarea class="rdet" data-campo="ros_queso_mezcla_det" placeholder="¿Cuál mezcla se hizo y en qué proporción? Ej. 70% Doña Rosa + 30% Colanta..." oninput="autoSave()" style="min-height:56px"></textarea>
+          <textarea class="rdet" data-campo="ros_queso_mezcla_det" placeholder="¿Cuál mezcla se hizo y en qué proporción? Ej. 70% Doña Rosa + 30% Colanta..." oninput="autoSave(this)" style="min-height:56px"></textarea>
         </div>
-        <input class="rinp" type="text" data-campo="ros_queso_kg" placeholder="Cantidad total utilizada (kg)" style="margin-top:4px" oninput="autoSave()">
+        <input class="rinp" type="text" data-campo="ros_queso_kg" placeholder="Cantidad total utilizada (kg)" style="margin-top:4px" oninput="autoSave(this)">
       </div>
       ${preg('d','¿Se liberó queso durante el turno?','ros_queso_lib',
         tbl('t-ros-queso',['Queso liberado','Cantidad (kg)','PNC generado'],1)
@@ -1262,11 +1498,11 @@ function renderPE() {
         <div class="preg-label"><span class="pnum">f</span>Estado de los hornos durante el turno</div>
         <div class="grid2" style="margin-bottom:8px">
           <div><label style="font-size:12px;color:var(--txt-s)">Hornos funcionales</label>
-            <input class="rinp" type="text" data-campo="ros_hornos_func" placeholder="Ej. 4 de 6" oninput="autoSave()"></div>
+            <input class="rinp" type="text" data-campo="ros_hornos_func" placeholder="Ej. 4 de 6" oninput="autoSave(this)"></div>
           <div><label style="font-size:12px;color:var(--txt-s)">Hornos en operación</label>
-            <input class="rinp" type="text" data-campo="ros_hornos_op" placeholder="Ej. 3" oninput="autoSave()"></div>
+            <input class="rinp" type="text" data-campo="ros_hornos_op" placeholder="Ej. 3" oninput="autoSave(this)"></div>
         </div>
-        <textarea class="rdet" data-campo="ros_hornos_nov" placeholder="Novedades en hornos (fallas, mantenimientos, otros)..." oninput="autoSave()"></textarea>
+        <textarea class="rdet" data-campo="ros_hornos_nov" placeholder="Novedades en hornos (fallas, mantenimientos, otros)..." oninput="autoSave(this)"></textarea>
         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de novedades en hornos</div>
         ${foto('Fotos de hornos','Adjuntar fotos de lo evidenciado','f_ros_hornos')}
       </div>
@@ -1278,7 +1514,7 @@ function renderPE() {
         </div>
         <div class="cond-no" style="display:none">
           <div style="background:var(--rojo-cl);border:1px solid var(--rojo-b);border-radius:var(--r);padding:12px;margin-top:8px">
-            <textarea class="rdet" data-campo="ros_nc_accion" placeholder="¿Qué se hizo con el producto no conforme?" oninput="autoSave()" style="margin-bottom:10px"></textarea>
+            <textarea class="rdet" data-campo="ros_nc_accion" placeholder="¿Qué se hizo con el producto no conforme?" oninput="autoSave(this)" style="margin-bottom:10px"></textarea>
             <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--txt)">¿Se logró que quedara conforme?</div>
             <div class="sino-row" data-key="ros_nc_logro">
               <button class="rbtn" onclick="siNo(this,'si')">Sí, quedó conforme</button>
@@ -1291,7 +1527,7 @@ function renderPE() {
         </div>
       </div>
       ${preg('h','¿Los parámetros del producto están dentro de la conformidad?','ros_params',``,
-        `<textarea class="rdet" data-campo="ros_params_det" placeholder="¿Cuáles parámetros no están conformes y por qué?" oninput="autoSave()"></textarea>
+        `<textarea class="rdet" data-campo="ros_params_det" placeholder="¿Cuáles parámetros no están conformes y por qué?" oninput="autoSave(this)"></textarea>
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de parámetros no conformes</div>
          ${foto('Adjuntar foto','Evidencia de parámetros fuera de spec','f_ros_params')}`
       )}`,
@@ -1301,9 +1537,9 @@ function renderPE() {
 
   c.innerHTML = `
   <div class="datos-card">
-    <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave()"></div>
+    <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave(this)"></div>
     <div class="dato-item"><label>Turno</label>
-      <select class="dato-inp" data-campo="turno" onchange="autoSave()"><option>1</option><option>2</option><option>3</option></select></div>
+      <select class="dato-inp" data-campo="turno" onchange="autoSave(this)"><option>1</option><option>2</option><option>3</option></select></div>
   </div>
 
   <div class="seccion" style="margin-bottom:12px">
@@ -1355,9 +1591,9 @@ function secPapaUnificado() {
             <div id="bloque-${k}-manual" style="display:none">
               <div class="grid2">
                 <div><label style="font-size:12px;color:var(--txt-s)">Lote de papa</label>
-                  <input class="rinp" type="text" data-campo="${k}_lote" placeholder="Lote" oninput="autoSave()"></div>
+                  <input class="rinp" type="text" data-campo="${k}_lote" placeholder="Lote" oninput="autoSave(this)"></div>
                 <div><label style="font-size:12px;color:var(--txt-s)">Referencia de papa</label>
-                  <input class="rinp" type="text" data-campo="${k}_ref_manual" placeholder="Referencia" oninput="autoSave()"></div>
+                  <input class="rinp" type="text" data-campo="${k}_ref_manual" placeholder="Referencia" oninput="autoSave(this)"></div>
               </div>
             </div>
           </div>
@@ -1371,11 +1607,11 @@ function secPapaUnificado() {
             <div class="preg-label"><span class="pnum">d</span>Evidencia de selección de producto no conforme</div>
             <div class="grid2" style="margin-bottom:8px">
               <div><label style="font-size:12px;color:var(--txt-s)">Papa fría — observación</label>
-                <textarea class="rdet" data-campo="${k}_sel_fria" placeholder="Estado y cantidad de papa fría..." oninput="autoSave()" style="min-height:50px"></textarea></div>
+                <textarea class="rdet" data-campo="${k}_sel_fria" placeholder="Estado y cantidad de papa fría..." oninput="autoSave(this)" style="min-height:50px"></textarea></div>
               <div><label style="font-size:12px;color:var(--txt-s)">Papa caliente — observación</label>
-                <textarea class="rdet" data-campo="${k}_sel_caliente" placeholder="Estado y cantidad de papa caliente..." oninput="autoSave()" style="min-height:50px"></textarea></div>
+                <textarea class="rdet" data-campo="${k}_sel_caliente" placeholder="Estado y cantidad de papa caliente..." oninput="autoSave(this)" style="min-height:50px"></textarea></div>
             </div>
-            <input class="rinp" type="text" data-campo="${k}_sel_personal" placeholder="Personal de selección (nombres)" oninput="autoSave()" style="margin-bottom:8px">
+            <input class="rinp" type="text" data-campo="${k}_sel_personal" placeholder="Personal de selección (nombres)" oninput="autoSave(this)" style="margin-bottom:8px">
             ${foto('📷 Evidencia de selección no conforme','Fotos de papa fría, caliente y personal',`f_${k}_sel`)}
           </div>
 
@@ -1389,13 +1625,13 @@ function secPapaUnificado() {
           )}
 
           ${preg('g','¿Se realizó limpieza de saborizador y bombo en cambio de referencia o sabor?',`${k}_limp_sabor`,
-            `<textarea class="rdet" data-campo="${k}_limp_sabor_det" placeholder="Especifique qué se limpió y en qué cambio..." oninput="autoSave()"></textarea>`
+            `<textarea class="rdet" data-campo="${k}_limp_sabor_det" placeholder="Especifique qué se limpió y en qué cambio..." oninput="autoSave(this)"></textarea>`
           )}
 
           ${preg('h','¿Se reprocesó papa durante el turno?',`${k}_reproc`,
             `<div class="grid2" style="margin-bottom:8px">
               <div><label style="font-size:12px;color:var(--txt-s)">Motivo del reproceso</label>
-                <textarea class="rdet" data-campo="${k}_reproc_motivo" placeholder="Describa el motivo..." oninput="autoSave()" style="min-height:50px"></textarea></div>
+                <textarea class="rdet" data-campo="${k}_reproc_motivo" placeholder="Describa el motivo..." oninput="autoSave(this)" style="min-height:50px"></textarea></div>
               <div>
                 <label style="font-size:12px;color:var(--txt-s)">Tipo de reproceso</label>
                 <div style="display:flex;gap:7px;margin-top:4px;flex-wrap:wrap">
@@ -1431,7 +1667,7 @@ function secPapaUnificado() {
 
           <div class="pregunta">
             <div class="preg-label"><span class="pnum">j</span>Otras novedades de la línea</div>
-            <textarea class="rdet" data-campo="${k}_novedades" style="min-height:70px" placeholder="Describa otras novedades relevantes..." oninput="autoSave()"></textarea>
+            <textarea class="rdet" data-campo="${k}_novedades" style="min-height:70px" placeholder="Describa otras novedades relevantes..." oninput="autoSave(this)"></textarea>
             ${foto('📷 Fotos de otras novedades','Adjuntar fotos si aplica',`f_${k}_novedades`)}
           </div>`,
 
@@ -1459,7 +1695,7 @@ function secPapaUnificado() {
         </div>
         <input type="hidden" data-campo="lav_lineas" id="lav_lineas">
       </div>`,
-      `<textarea class="rdet" data-campo="lav_motivo" placeholder="¿Por qué no está funcionando el lavador?" oninput="autoSave()"></textarea>`
+      `<textarea class="rdet" data-campo="lav_motivo" placeholder="¿Por qué no está funcionando el lavador?" oninput="autoSave(this)"></textarea>`
     )}
 
     <div class="sep"></div>
@@ -1474,15 +1710,15 @@ function secPapaUnificado() {
       <input type="hidden" data-campo="papa_tipos" id="papa_tipos">
       <div id="bloque-papa-r12" style="display:none;margin-bottom:8px">
         <label style="font-size:12px;color:var(--txt-s)">R12 — Proveedor</label>
-        <input class="rinp" type="text" data-campo="papa_prov_r12" placeholder="Nombre del proveedor" oninput="autoSave()">
+        <input class="rinp" type="text" data-campo="papa_prov_r12" placeholder="Nombre del proveedor" oninput="autoSave(this)">
       </div>
       <div id="bloque-papa-pareja" style="display:none;margin-bottom:8px">
         <label style="font-size:12px;color:var(--txt-s)">Pareja — Proveedor</label>
-        <input class="rinp" type="text" data-campo="papa_prov_pareja" placeholder="Nombre del proveedor" oninput="autoSave()">
+        <input class="rinp" type="text" data-campo="papa_prov_pareja" placeholder="Nombre del proveedor" oninput="autoSave(this)">
       </div>
       <div id="bloque-papa-cachirri" style="display:none;margin-bottom:8px">
         <label style="font-size:12px;color:var(--txt-s)">Cachirri — Proveedor</label>
-        <input class="rinp" type="text" data-campo="papa_prov_cachirri" placeholder="Nombre del proveedor" oninput="autoSave()">
+        <input class="rinp" type="text" data-campo="papa_prov_cachirri" placeholder="Nombre del proveedor" oninput="autoSave(this)">
       </div>
     </div>
 
@@ -1490,9 +1726,9 @@ function secPapaUnificado() {
     <div style="font-size:13px;font-weight:600;color:var(--azul);margin-bottom:10px">🌡️ Cuarto de papa</div>
     <div class="grid2" style="margin-bottom:10px">
       <div><label style="font-size:12px;color:var(--txt-s)">Temperatura del cuarto (°C)</label>
-        <input class="rinp" type="text" data-campo="cuarto_papa_temp" placeholder="°C" oninput="autoSave()"></div>
+        <input class="rinp" type="text" data-campo="cuarto_papa_temp" placeholder="°C" oninput="autoSave(this)"></div>
       <div><label style="font-size:12px;color:var(--txt-s)">Humedad (%)</label>
-        <input class="rinp" type="text" data-campo="cuarto_papa_hum" placeholder="%" oninput="autoSave()"></div>
+        <input class="rinp" type="text" data-campo="cuarto_papa_hum" placeholder="%" oninput="autoSave(this)"></div>
     </div>
     ${foto('📷 Evidencia del termohigrometro','Adjuntar foto del termohigrometro','f_cuarto_papa')}
 
@@ -1742,7 +1978,7 @@ function renderMP() {
   const c = document.getElementById('form-content');
   c.innerHTML = `
   <div class="datos-card">
-    <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave()"></div>
+    <div class="dato-item"><label>Fecha</label><input type="date" class="dato-inp" data-campo="fecha" onchange="autoSave(this)"></div>
   </div>
 
   <div class="seccion" id="sec-mp">
@@ -1756,25 +1992,25 @@ function renderMP() {
 
       ${preg(1,'¿Llegó papa?','mp_papa', `
         ${tbl('t-mp-papa',['Referencia','Proveedor','Aceptabilidad','Prueba sólidos (S/N)','% Sólidos'],2)}
-        <textarea class="rdet" style="margin-top:8px" data-campo="mp_papa_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
+        <textarea class="rdet" style="margin-top:8px" data-campo="mp_papa_obs" placeholder="Observaciones..." oninput="autoSave(this)"></textarea>
         ${foto('Fotos de recepción de papa','Adjuntar fotos','f_mp_papa')}
       `)}
 
       ${preg(2,'¿Llegó queso?','mp_queso', `
         ${tbl('t-mp-queso',['Proveedor','Peso (kg)','PNC'],1)}
-        <textarea class="rdet" style="margin-top:8px" data-campo="mp_queso_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
+        <textarea class="rdet" style="margin-top:8px" data-campo="mp_queso_obs" placeholder="Observaciones..." oninput="autoSave(this)"></textarea>
         ${foto('Fotos de recepción de queso','Adjuntar fotos','f_mp_queso')}
       `)}
 
       ${preg(3,'¿Llegó plátano?','mp_platano', `
         <div class="grid2" style="margin-bottom:8px">
           <div><label style="font-size:12px;color:var(--txt-s)">Referencia</label>
-            <select class="rinp" data-campo="mp_platano_ref" onchange="autoSave()">
+            <select class="rinp" data-campo="mp_platano_ref" onchange="autoSave(this)">
               <option value="">Seleccione...</option>
               <option>Pelado</option><option>Freído</option>
             </select></div>
           <div><label style="font-size:12px;color:var(--txt-s)">Proveedor</label>
-            <input class="rinp" type="text" data-campo="mp_platano_prov" placeholder="Proveedor" oninput="autoSave()"></div>
+            <input class="rinp" type="text" data-campo="mp_platano_prov" placeholder="Proveedor" oninput="autoSave(this)"></div>
         </div>
         <div class="preg-label" style="margin-bottom:5px;font-size:12px">Condiciones de transporte</div>
         <div class="sino-row" data-key="mp_platano_trans">
@@ -1782,9 +2018,9 @@ function renderMP() {
           <button class="rbtn" onclick="siNo(this,'no')">No conforme</button>
         </div>
         <div class="cond-no" style="display:none;margin-top:6px">
-          <textarea class="rdet" data-campo="mp_platano_trans_det" placeholder="¿Cuál no conformidad?" oninput="autoSave()" style="min-height:50px"></textarea>
+          <textarea class="rdet" data-campo="mp_platano_trans_det" placeholder="¿Cuál no conformidad?" oninput="autoSave(this)" style="min-height:50px"></textarea>
         </div>
-        <textarea class="rdet" style="margin-top:8px" data-campo="mp_platano_obs" placeholder="Observaciones..." oninput="autoSave()"></textarea>
+        <textarea class="rdet" style="margin-top:8px" data-campo="mp_platano_obs" placeholder="Observaciones..." oninput="autoSave(this)"></textarea>
         ${foto('Fotos de recepción de plátano','Adjuntar fotos','f_mp_platano')}
       `)}
 
