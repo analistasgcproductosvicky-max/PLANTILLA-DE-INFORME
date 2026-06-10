@@ -7,7 +7,7 @@ const PERSONAS = [
   'Juan Sebastián Parra','Oscar Bautista','Juan Pablo Rodríguez',
   'Yennireth Villarreal','Gloria Hernández','Valeria Hernández',
   'Cristian Aranda','Ángel Ramírez','Katherine Florez',
-  'María Alejandra Cárdenas','Ely Padilla','David Diaz'
+  'María Alejandra Cárdenas','Ely Padilla'
 ];
 
 const PERSONAS_AREA = {
@@ -26,9 +26,8 @@ let PAPA_SABORES     = ['Natural','Pollo','Limón','BBQ','Picante','Mayonesa','C
 const SECCIONES_PE = ['extruido','rosquilla','tortillas','trocillo','papa','pellet'];
 const LABEL_SEC = {
   extruido:'Extruido', rosquilla:'Rosquilla', tortillas:'Tortillas',
-  trocillo:'Trocillo', papa:'Papa', pellet:'Pellet'
+  trocillo:'Trocillo', daf:'Papa DAF', pc4:'Papa PC4', pc6:'Papa PC6', pellet:'Pellet'
 };
-
 
 /* ══════ ESTADO ══════ */
 let tipoActual = '';
@@ -947,7 +946,7 @@ function noOperoBloque(key, fid) {
     `<textarea class="rdet" data-campo="${key}_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
      <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
      ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica',fid)}`,
-    `<div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿Por qué la línea estuvo parada?</div>
+    `<div style="font-size:12px;font-weight:500;color:var(--txt-s);margin-bottom:5px">¿Por qué la línea estuvo parada sin limpieza?</div>
      <textarea class="rdet" data-campo="${key}_paro_motivo" placeholder="Ej. Personal insuficiente, mantenimiento programado, falla eléctrica..." oninput="autoSave()" style="min-height:56px"></textarea>`
   );
 }
@@ -1004,73 +1003,73 @@ function renderPE() {
         tbl(`t-${k}-pell-pnc`,['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
       )}
       <div class="pregunta">
-        <div class="preg-label"><span class="pnum">D</span>Otras novedades</div>
-        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa otras novedades presentadas durante el turno..." oninput="autoSave()"></textarea>
+        <div class="preg-label"><span class="pnum">D</span>Acciones correctivas del turno</div>
+        <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa las acciones implementadas..." oninput="autoSave()"></textarea>
       </div>
-      ${foto('Evidencia fotográfica','Si Aplica',`f_${k}_pell`)}`;
+      ${foto('Fotos de PNC / tanque','Evidencia fotográfica',`f_${k}_pell`)}`;
   }
 
   function secLineaFlex(id, icon, nombre, opPrincipal, pregsPrincipal) {
     const k = id;
-    const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita','Otro'];
+    const PELLETS = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
     const pelletOpts = PELLETS.map(p =>
-      `<button class="rbtn" style="font-size:11px" onclick="togglePelletLinea('${k}',this,'${p}')">${p}</button>`
+      '<button class="rbtn" style="font-size:11px" onclick="togglePelletLinea(\''+k+'\',this,\''+p+'\')">'+p+'</button>'
     ).join('');
-    return sec(id, icon, nombre, `
-      ${preg(1, `¿La línea de ${nombre} operó durante el turno?`, `${k}_opera`,
-        `${id === 'linea-tort' ? `
-        <!-- Maíz — solo aplica a la línea de tortilla -->
-        ${preg('a','¿Se cocinó maíz durante el turno?','tort_maiz_cocio',
-          `<div class="preg-label" style="font-size:12px;margin-bottom:5px;margin-top:6px">¿En qué tanques quedó almacenado el maíz?</div>
-           ${tbl('t-tort-maiz-cocio',['# Tanque','Desde qué hora','Cantidad (kg)','Observaciones'],1)}`
-        )}` : ''}
 
-        ${id === 'linea-pell' ?
-          /* ── LÍNEA PELLET: siempre procesa pellets, no preguntar ── */
-          `<div class="nota-info" style="margin-bottom:10px">Línea Pellet — registrar producción del turno</div>
-           <div class="pregunta" style="border:none;padding:0">
-             <div class="preg-label" style="margin-bottom:6px"><span class="pnum">a</span>¿Qué tipo de pellet se procesó? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
-             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
-             <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
-             <div id="${k}-pellet-otro" style="display:none;margin-top:6px">
-              <input class="rinp" type="text" data-campo="${k}_pellet_otro_det" placeholder="Especificar tipo de pellet..." oninput="autoSave()">
-           </div>
-           ${tbl('t-linea-pell-pell-prod',['Referencia','% Saborización','Observaciones'],2)}
-           ${bloquesPellet(k)}`
-        :
-          /* ── OTRAS LÍNEAS: preguntar qué se procesó ── */
-          `<div class="pregunta">
-            <div class="preg-label"><span class="pnum">b</span>¿Qué se procesó en esta línea?</div>
-            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">
-              <button class="rbtn" id="btn-${k}-princ" onclick="selProcesoLinea('${k}','principal')">${opPrincipal}</button>
-              <button class="rbtn" id="btn-${k}-pellet-sel" onclick="selProcesoLinea('${k}','pellet')">Pellet</button>
-            </div>
-            <input type="hidden" data-campo="${k}_proceso_tipo" id="${k}_proceso_tipo">
-          </div>
+    // ── Construir condSi fuera de preg() para evitar backticks anidados ──
+    let condSi = '';
 
-          <!-- Bloque PRODUCTO PRINCIPAL -->
-          <div id="bloque-${k}-princ" style="display:none">
-            <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando: <strong>${opPrincipal}</strong></div>
-            ${pregsPrincipal}
-          </div>
+    // Solo tortilla: pregunta de maíz
+    if(id === 'linea-tort') {
+      condSi += preg('a','¿Se cocinó maíz durante el turno?','tort_maiz_cocio',
+        '<div class="preg-label" style="font-size:12px;margin-bottom:5px;margin-top:6px">¿En qué tanques quedó almacenado el maíz?</div>' +
+        tbl('t-tort-maiz-cocio',['# Tanque','Desde qué hora','Cantidad (kg)','Observaciones'],1)
+      );
+    }
 
-          <!-- Bloque PELLET -->
-          <div id="bloque-${k}-pellet" style="display:none">
-            <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando pellet</div>
-            <div class="pregunta" style="border:none;padding:0">
-              <div class="preg-label" style="margin-bottom:6px"><span class="pnum">•</span>¿Qué tipo de pellet? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
-              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
-              <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
-             <div id="${k}-pellet-otro" style="display:none;margin-top:6px">
-              <input class="rinp" type="text" data-campo="${k}_pellet_otro_det" placeholder="Especificar tipo de pellet..." oninput="autoSave()">
-           </div>
-            ${tbl(`t-${k}-pell-prod`,['Referencia','% Saborización','Observaciones'],2)}
-            ${bloquesPellet(k)}
-          </div>`
-        }`,
-        noOperoBloque(k, `f_${k}_limp`)
-      )}
-    `);
+    // Pellet directo o selección de proceso
+    if(id === 'linea-pell') {
+      condSi +=
+        '<div class="nota-info" style="margin-bottom:10px">Línea Pellet — registrar producción del turno</div>' +
+        '<div class="pregunta" style="border:none;padding:0">' +
+          '<div class="preg-label" style="margin-bottom:6px"><span class="pnum">a</span>¿Qué tipo de pellet se procesó? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">' + pelletOpts + '</div>' +
+          '<input type="hidden" data-campo="' + k + '_proceso_pellet" id="' + k + '_proceso_pellet">' +
+        '</div>' +
+        tbl('t-linea-pell-pell-prod',['Referencia','% Saborización','Observaciones'],2) +
+        bloquesPellet(k);
+    } else {
+      condSi +=
+        '<div class="pregunta">' +
+          '<div class="preg-label"><span class="pnum">b</span>¿Qué se procesó en esta línea?</div>' +
+          '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">' +
+            '<button class="rbtn" id="btn-'+k+'-princ" data-lid="'+k+'" data-tipo="principal" onclick="selProcesoLinea(this.dataset.lid,this.dataset.tipo)">'+opPrincipal+'</button>' +
+            '<button class="rbtn" id="btn-'+k+'-pellet-sel" data-lid="'+k+'" data-tipo="pellet" onclick="selProcesoLinea(this.dataset.lid,this.dataset.tipo)">Pellet</button>' +
+          '</div>' +
+          '<input type="hidden" data-campo="'+k+'_proceso_tipo" id="'+k+'_proceso_tipo">' +
+        '</div>' +
+        '<div id="bloque-'+k+'-princ" style="display:none">' +
+          '<div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando: <strong>'+opPrincipal+'</strong></div>' +
+          pregsPrincipal +
+        '</div>' +
+        '<div id="bloque-'+k+'-pellet" style="display:none">' +
+          '<div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando pellet</div>' +
+          '<div class="pregunta" style="border:none;padding:0">' +
+            '<div class="preg-label" style="margin-bottom:6px"><span class="pnum">•</span>¿Qué tipo de pellet? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">' + pelletOpts + '</div>' +
+            '<input type="hidden" data-campo="'+k+'_proceso_pellet" id="'+k+'_proceso_pellet">' +
+          '</div>' +
+          tbl(k+'-pell-prod',['Referencia','% Saborización','Observaciones'],2) +
+          bloquesPellet(k) +
+        '</div>';
+    }
+
+    return sec(id, icon, nombre,
+      preg(1, '¿La línea de '+nombre+' operó durante el turno?', k+'_opera',
+        condSi,
+        noOperoBloque(k, 'f_'+k+'_limp')
+      )
+    );
   }
 
   const TORTILLA_TIPOS = ['Tortilla tipo Nacho','Tortilla Redonda','Tortilla tipo Twisty','Otro'];
@@ -1296,12 +1295,7 @@ function renderPE() {
          <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Foto de parámetros no conformes</div>
          ${foto('Adjuntar foto','Evidencia de parámetros fuera de spec','f_ros_params')}`
       )}`,
-      `${preg('a','¿Se hizo limpieza de la línea?','ros_limp_paro',
-        `<textarea class="rdet" data-campo="ros_limp_paro_det" placeholder="¿Qué se limpió? Describa la limpieza realizada..." oninput="autoSave()"></textarea>
-         <div style="margin-top:8px;font-size:12px;font-weight:500;color:var(--txt-s)">📷 Fotos de la limpieza</div>
-         ${foto('Adjuntar fotos de limpieza','Evidencia fotográfica','f_ros_limp')}`,
-        `<div style="background:var(--gris);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--txt-s)">No se realizó limpieza en la línea de Rosquilla.</div>`
-      )}`
+      noOperoBloque('rosquilla','f_ros_limp')
     )
   );
 
@@ -1442,11 +1436,7 @@ function secPapaUnificado() {
           </div>`,
 
           /* NO OPERA */
-          `${preg('a','¿Se hizo limpieza de la línea?',`${k}_limp_paro`,
-            `<textarea class="rdet" data-campo="${k}_limp_paro_det" placeholder="¿Qué se limpió?" oninput="autoSave()"></textarea>
-             ${foto('Fotos de limpieza','Evidencia fotográfica',`f_${k}_limp`)}`,
-            `<textarea class="rdet" data-campo="${k}_manejo_actual" placeholder="Describa el estado de la línea durante el turno" oninput="autoSave()"></textarea>`
-          )}`
+          noOperoBloque(k, `f_${k}_limp`)
         )}
 
       </div>
@@ -1680,9 +1670,6 @@ function togglePelletLinea(lineaId, btn, pelletTipo) {
   const sel = [...btn.closest('div').querySelectorAll('.rbtn.si')].map(b => b.textContent.trim());
   const inp = document.getElementById(`${lineaId}_proceso_pellet`);
   if(inp) inp.value = sel.join(',');
-  // Mostrar campo de texto si se selecciona "Otro"
-  const otroEl = document.getElementById(`${lineaId}-pellet-otro`);
-  if(otroEl) otroEl.style.display = sel.includes('Otro') ? 'block' : 'none';
   autoSave();
 }
 
