@@ -34,7 +34,7 @@ function deserial(d) {
   return d;
 }
 
-let _unsubE=null, _unsubP=null;
+let _unsubE=null, _unsubP=null, _unsubS=null;
 window._fb = {
   async guardar(id, datos) {
     try { await setDoc(doc(db,'borradores',id), serial(datos)); return true; }
@@ -72,17 +72,40 @@ window._fb = {
       s=>{const m={};s.forEach(d=>{m[d.id]=d.data();});cb(m);},e=>console.error(e));
   },
   async saveSeccion(bid, sec, data) {
-    try { await setDoc(doc(db,'borradores',bid,'secciones',sec), {...data, _ts: Date.now()}); return true; }
-    catch(e){ console.error('saveSeccion:',e); return false; }
+    try {
+      // Serialize nested arrays/objects (Firestore doesn't support nested arrays)
+      const safe = {...data, _ts: Date.now()};
+      ['_fotos','_tablas','_resp','_sinos','_btns'].forEach(k => {
+        if(safe[k] !== undefined) safe[k] = JSON.stringify(safe[k]);
+      });
+      await setDoc(doc(db,'borradores',bid,'secciones',sec), safe);
+      return true;
+    } catch(e){ console.error('saveSeccion:',e); return false; }
   },
   async getSeccion(bid, sec) {
-    try { const s=await getDoc(doc(db,'borradores',bid,'secciones',sec)); return s.exists()?s.data():null; }
-    catch(e){ return null; }
+    try {
+      const s = await getDoc(doc(db,'borradores',bid,'secciones',sec));
+      if(!s.exists()) return null;
+      const d = s.data();
+      ['_fotos','_tablas','_resp','_sinos','_btns'].forEach(k => {
+        if(typeof d[k]==='string') try{d[k]=JSON.parse(d[k]);}catch(e){}
+      });
+      return d;
+    } catch(e){ return null; }
   },
   async getAllSecciones(bid) {
-    try { const s=await getDocs(collection(db,'borradores',bid,'secciones'));
-      const r={}; s.forEach(d=>{ r[d.id]=d.data(); }); return r; }
-    catch(e){ return {}; }
+    try {
+      const s = await getDocs(collection(db,'borradores',bid,'secciones'));
+      const r = {};
+      s.forEach(d => {
+        const data = d.data();
+        ['_fotos','_tablas','_resp','_sinos','_btns'].forEach(k => {
+          if(typeof data[k]==='string') try{data[k]=JSON.parse(data[k]);}catch(e){}
+        });
+        r[d.id] = data;
+      });
+      return r;
+    } catch(e){ return {}; }
   },
   escucharSecciones(bid, cb) {
     if(_unsubS) _unsubS();

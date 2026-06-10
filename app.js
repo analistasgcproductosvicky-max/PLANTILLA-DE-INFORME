@@ -2756,7 +2756,7 @@ async function cargarConfigListas() {
   if(!window._fb) return;
   // Load papa referencias
   try {
-    const dr = await window._fb.cargar('__config__papa_refs__');
+    const dr = await window._fb.cargar('cfg-papa-refs');
     if(dr?.lista?.length) {
       window._papaRefsLocal = dr.lista;
       PAPA_REFERENCIAS.length = 0; dr.lista.forEach(v => PAPA_REFERENCIAS.push(v));
@@ -2764,7 +2764,7 @@ async function cargarConfigListas() {
   } catch(e) {}
   // Load papa sabores
   try {
-    const ds = await window._fb.cargar('__config__papa_sabores__');
+    const ds = await window._fb.cargar('cfg-papa-sabores');
     if(ds?.lista?.length) {
       window._papaSaboresLocal = ds.lista;
       PAPA_SABORES.length = 0; ds.lista.forEach(v => PAPA_SABORES.push(v));
@@ -2775,7 +2775,7 @@ async function cargarConfigListas() {
 async function cargarPersonasConfig() {
   if(!window._fb) return;
   try {
-    const d = await window._fb.cargar('__config__personas__');
+    const d = await window._fb.cargar('cfg-personas');
     if(d && d.lista && Array.isArray(d.lista) && d.lista.length > 0) {
       _personasLocal = d.lista;
       // Update all PERSONAS_AREA entries
@@ -2799,7 +2799,7 @@ async function guardarListaConfig(firebaseKey, lista, windowKey, globalRef) {
 async function guardarPersonasConfig(lista) {
   if(!window._fb) { toast('Sin conexión','rojo'); return false; }
   try {
-    await window._fb.guardar('__config__personas__', { lista, tipo: '__config__', ts: Date.now() });
+    await window._fb.guardar('cfg-personas', { lista, tipo: '__config__', ts: Date.now() });
     _personasLocal = lista;
     Object.keys(PERSONAS_AREA).forEach(k => { PERSONAS_AREA[k] = lista; });
     return true;
@@ -3000,7 +3000,7 @@ function cambiarPin() {
   }
   // Guardar nuevo PIN en Firebase
   if(window._fb) {
-    window._fb.guardar('__config__pin__', { pin: nuevo, tipo:'__config__', ts: Date.now() });
+    window._fb.guardar('cfg-pin', { pin: nuevo, tipo:'__config__', ts: Date.now() });
   }
   // Update in memory (note: ADMIN_PIN is const - we use a mutable approach via config)
   window._adminPinActual = nuevo;
@@ -3015,8 +3015,8 @@ async function guardarCambiosAdmin() {
   const btn = document.querySelector('.btn-admin-save');
   if(btn) btn.textContent = '⏳ Guardando...';
   const panel2 = document.getElementById('admin-panel');
-  if(panel2?._refs)    await guardarListaConfig('__config__papa_refs__',    panel2._refs,    '_papaRefsLocal',    PAPA_REFERENCIAS);
-  if(panel2?._sabores) await guardarListaConfig('__config__papa_sabores__', panel2._sabores, '_papaSaboresLocal',  PAPA_SABORES);
+  if(panel2?._refs)    await guardarListaConfig('cfg-papa-refs',    panel2._refs,    '_papaRefsLocal',    PAPA_REFERENCIAS);
+  if(panel2?._sabores) await guardarListaConfig('cfg-papa-sabores', panel2._sabores, '_papaSaboresLocal',  PAPA_SABORES);
   const ok = await guardarPersonasConfig(lista);
   if(ok) {
     toast('✓ Responsables actualizados en la nube','verde');
@@ -3039,7 +3039,7 @@ async function initMenu() {
 async function cargarPinConfig() {
   if(!window._fb) return;
   try {
-    const d = await window._fb.cargar('__config__pin__');
+    const d = await window._fb.cargar('cfg-pin');
     if(d && d.pin) window._adminPinActual = d.pin;
   } catch(e) {}
 }
