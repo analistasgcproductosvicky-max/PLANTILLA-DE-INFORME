@@ -73,10 +73,12 @@ window._fb = {
   },
   async saveSeccion(bid, sec, data) {
     try {
-      // Serialize nested arrays/objects (Firestore doesn't support nested arrays)
-      const safe = {...data, _ts: Date.now()};
+      // Deep-clean: remove undefined, stringify complex fields
+      const safe = JSON.parse(JSON.stringify({...data, _ts: Date.now()},
+        (k,v) => v === undefined ? null : v));
       ['_fotos','_tablas','_resp','_sinos','_btns'].forEach(k => {
-        if(safe[k] !== undefined) safe[k] = JSON.stringify(safe[k]);
+        if(safe[k] !== undefined && typeof safe[k] !== 'string')
+          safe[k] = JSON.stringify(safe[k]);
       });
       await setDoc(doc(db,'borradores',bid,'secciones',sec), safe);
       return true;
