@@ -1003,10 +1003,10 @@ function renderPE() {
         tbl(`t-${k}-pell-pnc`,['Referencia','Causa','Cantidad','¿Qué se hizo?'],1)
       )}
       <div class="pregunta">
-        <div class="preg-label"><span class="pnum">D</span>Otras Novedades</div>
+        <div class="preg-label"><span class="pnum">D</span>Otras novedades</div>
         <textarea class="rdet" data-campo="${k}_pell_acc" placeholder="Describa otras novedades presentadas durante el turno..." oninput="autoSave()"></textarea>
       </div>
-      ${foto('Evidencia Fotográfica','Si Aplica',`f_${k}_pell`)}`;
+      ${foto('Evidencia fotográfica','Si Aplica',`f_${k}_pell`)}`;
   }
 
   function secLineaFlex(id, icon, nombre, opPrincipal, pregsPrincipal) {
@@ -1023,33 +1023,46 @@ function renderPE() {
           `<div class="preg-label" style="font-size:12px;margin-bottom:5px;margin-top:6px">¿En qué tanques quedó almacenado el maíz?</div>
            ${tbl('t-tort-maiz-cocio',['# Tanque','Desde qué hora','Cantidad (kg)','Observaciones'],1)}`
         )}` : ''}
-        <!-- ¿Qué se procesó? -->
-        <div class="pregunta">
-          <div class="preg-label"><span class="pnum">b</span>¿Qué se procesó en esta línea?</div>
-          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">
-            <button class="rbtn" id="btn-${k}-princ" onclick="selProcesoLinea('${k}','principal')">${opPrincipal}</button>
-            <button class="rbtn" id="btn-${k}-pellet-sel" onclick="selProcesoLinea('${k}','pellet')">Pellet</button>
-          </div>
-          <input type="hidden" data-campo="${k}_proceso_tipo" id="${k}_proceso_tipo">
-        </div>
 
-        <!-- Bloque PRODUCTO PRINCIPAL -->
-        <div id="bloque-${k}-princ" style="display:none">
-          <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando: <strong>${opPrincipal}</strong></div>
-          ${pregsPrincipal}
-        </div>
-
-        <!-- Bloque PELLET -->
-        <div id="bloque-${k}-pellet" style="display:none">
-          <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando pellet</div>
-          <div class="pregunta" style="border:none;padding:0">
-            <div class="preg-label" style="margin-bottom:6px"><span class="pnum">•</span>¿Qué tipo de pellet? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
-            <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
+        ${id === 'linea-pell' ?
+          /* ── LÍNEA PELLET: siempre procesa pellets, no preguntar ── */
+          `<div class="nota-info" style="margin-bottom:10px">Línea Pellet — registrar producción del turno</div>
+           <div class="pregunta" style="border:none;padding:0">
+             <div class="preg-label" style="margin-bottom:6px"><span class="pnum">a</span>¿Qué tipo de pellet se procesó? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
+             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
+             <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
+           </div>
+           ${tbl('t-linea-pell-pell-prod',['Referencia','% Saborización','Observaciones'],2)}
+           ${bloquesPellet(k)}`
+        :
+          /* ── OTRAS LÍNEAS: preguntar qué se procesó ── */
+          `<div class="pregunta">
+            <div class="preg-label"><span class="pnum">b</span>¿Qué se procesó en esta línea?</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px">
+              <button class="rbtn" id="btn-${k}-princ" onclick="selProcesoLinea('${k}','principal')">${opPrincipal}</button>
+              <button class="rbtn" id="btn-${k}-pellet-sel" onclick="selProcesoLinea('${k}','pellet')">Pellet</button>
+            </div>
+            <input type="hidden" data-campo="${k}_proceso_tipo" id="${k}_proceso_tipo">
           </div>
-          ${tbl(`t-${k}-pell-prod`,['Referencia','% Saborización','Observaciones'],2)}
-          ${bloquesPellet(k)}
-        </div>`,
+
+          <!-- Bloque PRODUCTO PRINCIPAL -->
+          <div id="bloque-${k}-princ" style="display:none">
+            <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando: <strong>${opPrincipal}</strong></div>
+            ${pregsPrincipal}
+          </div>
+
+          <!-- Bloque PELLET -->
+          <div id="bloque-${k}-pellet" style="display:none">
+            <div class="nota-info" style="font-size:11px;margin-bottom:8px">Procesando pellet</div>
+            <div class="pregunta" style="border:none;padding:0">
+              <div class="preg-label" style="margin-bottom:6px"><span class="pnum">•</span>¿Qué tipo de pellet? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varios)</span></div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${pelletOpts}</div>
+              <input type="hidden" data-campo="${k}_proceso_pellet" id="${k}_proceso_pellet">
+            </div>
+            ${tbl(`t-${k}-pell-prod`,['Referencia','% Saborización','Observaciones'],2)}
+            ${bloquesPellet(k)}
+          </div>`
+        }`,
         noOperoBloque(k, `f_${k}_limp`)
       )}
     `);
@@ -1059,33 +1072,23 @@ function renderPE() {
   const PELLET_TIPOS   = ['Chicharrón','Tocineta','Chicharrón Carnudo','Cebollita'];
 
   const pregsTortilla = `
-<div class="pregunta">
-    <div class="preg-label">
-        <span class="pnum">b</span>
-        ¿Qué se procesó en la línea?
-        <span style="font-size:11px;color:var(--txt-s)">
-            (puede seleccionar varias opciones)
-        </span>
-    </div>
-
-    <div style="margin-bottom:6px">
-        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">
-            Tortilla:
-        </div>
-
+    <div class="pregunta">
+      <div class="preg-label"><span class="pnum">b</span>¿Qué tipo de tortilla se procesó? <span style="font-size:11px;color:var(--txt-s)">(puede seleccionar varias)</span></div>
+      <div style="margin-bottom:6px">
+        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">Tortilla:</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-            ${TORTILLA_TIPOS.map(t =>
-                `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('tort',this,'${t}')">${t}</button>`
-            ).join('')}
+          ${TORTILLA_TIPOS.map(t => `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('tort',this,'${t}')">${t}</button>`).join('')}
         </div>
-    </div>
-
-    <input type="hidden" data-campo="tort_procesado" id="tort_procesado">
-
-    <div id="tort-otro-det" style="display:none;margin-top:6px">
+        <div style="font-size:11px;color:var(--txt-s);margin-bottom:4px;font-weight:500">Pellet:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${PELLET_TIPOS.map(p => `<button class="rbtn" style="font-size:11px" onclick="toggleProcTort('pellet',this,'${p}')">${p}</button>`).join('')}
+        </div>
+      </div>
+      <input type="hidden" data-campo="tort_procesado" id="tort_procesado">
+      <div id="tort-otro-det" style="display:none;margin-top:6px">
         <input class="rinp" type="text" data-campo="tort_otro_det" placeholder="Especifique..." oninput="autoSave()">
+      </div>
     </div>
-</div>
 
     <div class="pregunta">
       <div class="preg-label"><span class="pnum">c</span>¿Qué referencias salieron?</div>
@@ -1406,7 +1409,7 @@ function secPapaUnificado() {
           )}
 
           <div class="pregunta">
-            <div class="preg-label"><span class="pnum">i</span>Tipo de Aceite</div>
+            <div class="preg-label"><span class="pnum">i</span>Tipo de grasa</div>
             <div class="grid2">
               <div>
                 <label style="font-size:12px;color:var(--txt-s)">Tipo de aceite (Oleína o Blend)</label>
