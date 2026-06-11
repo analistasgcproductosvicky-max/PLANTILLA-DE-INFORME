@@ -812,6 +812,7 @@ async function guardarYSalir(btn) {
 }
 
 function _ejecutarVolver() {
+  realtimeIniciado = false;
   _hayCambios = false;
   if(window._fb && borradorId && seccionAbierta) window._fb.limpiarPresencia(borradorId, seccionAbierta);
   if(window._fb) window._fb.detener();
@@ -946,30 +947,40 @@ function actualizarTab(s) {
 }
 
 /* ══════ PRESENCIA ══════ */
+let realtimeIniciado = false;
+
 function iniciarRealtime() {
+
+  if(realtimeIniciado) return;
+
+  realtimeIniciado = true;
+
   window._fb.escucharEstados(borradorId, estados => {
     estadosRemotos = estados;
     SECCIONES_PE.forEach(s => actualizarTab(s));
   });
+
   window._fb.escucharPresencia(borradorId, presencia => {
     presenciaRemota = presencia;
     SECCIONES_PE.forEach(s => {
       const tp = document.getElementById('tp-'+s);
       if(!tp) return;
+
       const p = presencia[s];
+
       if(p && p.usuario && Date.now()-(p.ts||0) < 120000) {
-        const ini = p.usuario.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-        tp.textContent = ini; tp.title = p.usuario+' editando'; tp.classList.add('visible');
-      } else tp.classList.remove('visible');
-      // Banner en sección abierta
-      const body = document.querySelector(`#sec-${s} .sec-body`);
-      if(body) {
-        body.querySelector('.badge-editando')?.remove();
-        if(p && p.usuario && Date.now()-(p.ts||0)<120000) {
-          const b = document.createElement('div'); b.className = 'badge-editando';
-          b.innerHTML = `<span class="dot-vivo"></span>${p.usuario} está editando esta sección`;
-          body.insertBefore(b, body.firstChild);
-        }
+        const ini = p.usuario
+          .split(' ')
+          .map(w=>w[0])
+          .join('')
+          .toUpperCase()
+          .slice(0,2);
+
+        tp.textContent = ini;
+        tp.title = p.usuario+' editando';
+        tp.classList.add('visible');
+      } else {
+        tp.classList.remove('visible');
       }
     });
   });
