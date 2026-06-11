@@ -34,6 +34,7 @@ let tipoActual = '';
 let borradorId = '';
 let autoTimer  = null;
 let createdAt  = 0; // set once on form open, never updated
+let _hayCambios = false; // true si hay cambios sin guardar
 let estadoActual = 'construccion'; // 'construccion' | 'finalizado'
 let presenciaRemota = {};
 let estadosRemotos  = {};
@@ -373,21 +374,20 @@ function getResp(area) {
 /* ══════ GUARDADO ══════ */
 // ── Detectar a qué sección pertenece un elemento del DOM ──
 function autoSave() {
-  clearTimeout(autoTimer);
-  document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  autoTimer = setTimeout(guardarNube, 800);
+  _hayCambios = true;
+  document.getElementById('autosave-lbl').textContent = '✏️ Sin guardar';
 }
 
 function autoSaveFoto() {
-  clearTimeout(autoTimer);
-  document.getElementById('autosave-lbl').textContent = '☁️ Guardando...';
-  autoTimer = setTimeout(guardarNube, 300);
+  _hayCambios = true;
+  document.getElementById('autosave-lbl').textContent = '✏️ Sin guardar';
 }
 
 async function guardarNube() {
   if(!window._fb) { document.getElementById('autosave-lbl').textContent = '⚠️ Sin conexión'; return; }
   const ok = await window._fb.guardar(borradorId, recopilarDatos());
-  document.getElementById('autosave-lbl').textContent = ok ? '☁️ Guardado' : '⚠️ Error al guardar';
+  if(ok) { _hayCambios = false; document.getElementById('autosave-lbl').textContent = '☁️ Guardado'; }
+  else    { document.getElementById('autosave-lbl').textContent = '⚠️ Error al guardar'; }
 }
 
 
@@ -722,7 +722,7 @@ async function abrirFormulario(tipo) {
 }
 
 function _abrirFormularioNuevo(tipo) {
-  tipoActual = tipo; borradorId = tipo + '_' + Date.now(); createdAt = Date.now(); estadoActual = 'construccion';
+  tipoActual = tipo; borradorId = tipo + '_' + Date.now(); createdAt = Date.now(); estadoActual = 'construccion'; _hayCambios = false;
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
   // Crear borrador en Firebase inmediatamente
@@ -781,7 +781,38 @@ function preguntarBorrador(tipoLabel, fecha, turno, haceStr) {
 }
 
 function volverMenu() {
-  autoSave();
+  if(_hayCambios) {
+    const m = document.createElement('div');
+    m.className = 'modal-overlay';
+    m.innerHTML = `<div class="modal-box" style="max-width:420px">
+      <div class="modal-titulo" style="font-size:15px;margin-bottom:10px">⚠️ Hay cambios sin guardar</div>
+      <p style="font-size:13px;color:var(--txt-s);margin-bottom:18px">¿Desea guardar los cambios antes de salir?</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="modal-btn" style="flex:1;background:var(--verde)"
+          onclick="guardarYSalir(this)">💾 Guardar y salir</button>
+        <button class="modal-btn" style="flex:1;background:var(--rojo)"
+          onclick="_ejecutarVolver();this.closest('.modal-overlay').remove()">Salir sin guardar</button>
+        <button class="modal-btn" style="flex:1;background:var(--gris-m);color:var(--txt)"
+          onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(m);
+    return;
+  }
+  _ejecutarVolver();
+}
+
+async function guardarYSalir(btn) {
+  const modal = btn.closest('.modal-overlay');
+  btn.textContent = '⏳ Guardando...';
+  btn.disabled = true;
+  await guardarNube();
+  modal.remove();
+  _ejecutarVolver();
+}
+
+function _ejecutarVolver() {
+  _hayCambios = false;
   if(window._fb && borradorId && seccionAbierta) window._fb.limpiarPresencia(borradorId, seccionAbierta);
   if(window._fb) window._fb.detener();
   seccionAbierta = '';
@@ -842,7 +873,7 @@ async function cargarBorrador(id) {
   toast('⏳ Cargando...');
   const d = window._fb ? await window._fb.cargar(id) : null;
   if(!d) { toast('⚠️ No se pudo cargar','rojo'); return; }
-  tipoActual = d.tipo; borradorId = id; createdAt = d.createdAt || d.ts || Date.now(); estadoActual = d.estado || 'construccion';
+  tipoActual = d.tipo; borradorId = id; createdAt = d.createdAt || d.ts || Date.now(); estadoActual = d.estado || 'construccion'; _hayCambios = false;
   document.getElementById('pantalla-menu').style.display = 'none';
   document.getElementById('pantalla-form').style.display = 'block';
   const tw = document.getElementById('tabs-wrap');
